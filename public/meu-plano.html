@@ -112,17 +112,27 @@
       return;
     }
 
-    const [clienteRes, configRes] = await Promise.all([
+    const [clienteRes, configRes, appsRes] = await Promise.all([
       fetch(`${FIREBASE_DB}/revendedores/${revId}/clientes/${clienteId}.json`),
-      fetch(`${FIREBASE_DB}/revendedores/${revId}/config.json`)
+      fetch(`${FIREBASE_DB}/revendedores/${revId}/config.json`),
+      fetch(`${FIREBASE_DB}/revendedores/${revId}/aplicativos.json`)
     ]);
     const c = await clienteRes.json();
     const config = await configRes.json() || {};
+    const appsData = await appsRes.json() || {};
+    const apps = Object.entries(appsData).map(([id, a]) => ({ id, ...a }));
 
     if (!c) {
       card.innerHTML = '<div class="loading">Cliente não encontrado.</div>';
       return;
     }
+
+    const marca = config.marca || {};
+    if (marca.corPrimaria) document.documentElement.style.setProperty('--ok', marca.corPrimaria);
+    if (marca.nome) document.title = marca.nome;
+    const logoHtml = marca.logoUrl ? `<img src="${marca.logoUrl}" alt="${marca.nome || ''}" style="max-height:36px; margin-bottom:14px; display:block;">` : '';
+    const textoBotaoNotif = marca.textoBotaoNotificacao || 'Ativar notificações';
+    const textoBotaoSuporte = marca.textoBotaoSuporte || '💬 Falar com o suporte';
 
     let statusClasse, statusTexto, vencimentoTexto;
     if (c.emTeste) {
@@ -140,17 +150,36 @@
     }
 
     const notifAtiva = c.notificacaoAtiva;
-    const temDadosAcesso = c.usuario || c.senha;
+    const appsDoCliente = (c.aplicativosIds || []).map(id => apps.find(a => a.id === id)).filter(Boolean);
+    const temDadosAcesso = c.usuario || c.senha || appsDoCliente.length > 0;
 
     let dadosAcessoHtml = '';
     let emailCapturaHtml = '';
 
     if (notifAtiva && temDadosAcesso) {
-      dadosAcessoHtml = `
-        <div style="background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.4); border-radius:10px; padding:10px 12px; margin-top:16px;">
-          <div style="font-size:12px; color:var(--ok); margin-bottom:6px;">✅ Dados de acesso:</div>
+      const cores = ['#34D399', '#60A5FA', '#F472B6', '#A78BFA', '#FB923C', '#22D3EE'];
+      const appsHtml = appsDoCliente.map((app, i) => {
+        const cor = cores[i % cores.length];
+        return `
+          <div style="background:${cor}1a; border:1px solid ${cor}55; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:6px; color:${cor}; font-weight:600; font-size:14px;">📺 ${app.nome}</div>
+            <div class="mono" style="color:${cor}; opacity:0.75; font-size:13px; margin-top:3px;">Código: ${app.codigo}</div>
+          </div>
+        `;
+      }).join('');
+
+      const credenciaisHtml = (c.usuario || c.senha) ? `
+        <div style="background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.4); border-radius:10px; padding:10px 12px; margin-top:4px;">
           ${c.usuario ? `<div style="display:flex; justify-content:space-between; font-size:13px; padding:4px 0;"><span style="color:var(--text-muted);">Usuário</span><span class="mono" style="color:var(--warn); font-weight:600;">${c.usuario}</span></div>` : ''}
           ${c.senha ? `<div style="display:flex; justify-content:space-between; font-size:13px; padding:4px 0;"><span style="color:var(--text-muted);">Senha</span><span class="mono" style="color:var(--warn); font-weight:600;">${c.senha}</span></div>` : ''}
+        </div>
+      ` : '';
+
+      dadosAcessoHtml = `
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+          <div style="font-size:12px; color:var(--ok); margin-bottom:8px;">✅ Dados de acesso:</div>
+          ${appsHtml}
+          ${credenciaisHtml}
         </div>
       `;
     } else if (!notifAtiva && temDadosAcesso) {
@@ -163,19 +192,20 @@
     }
 
     const botaoSuporteHtml = config.whatsappSuporte
-      ? `<a class="btn-suporte" href="https://wa.me/${config.whatsappSuporte}?text=${encodeURIComponent('Olá! Sou o cliente ' + c.nome + ' e preciso de suporte.')}" target="_blank">💬 Falar com o suporte</a>`
+      ? `<a class="btn-suporte" href="https://wa.me/${config.whatsappSuporte}?text=${encodeURIComponent('Olá! Sou o cliente ' + c.nome + ' e preciso de suporte.')}" target="_blank">${textoBotaoSuporte}</a>`
       : '';
 
     card.innerHTML = `
+      ${logoHtml}
       <h1>Olá, ${c.nome}</h1>
-      <div class="sub">Status do seu plano</div>
+      <div class="sub">${marca.nome ? `Status do seu plano · ${marca.nome}` : 'Status do seu plano'}</div>
       <div class="linha"><span class="label">Servidor</span><span class="mono">${c.servidor || '—'}</span></div>
       <div class="linha"><span class="label">Valor</span><span class="mono">R$ ${Number(c.planoValor||0).toFixed(2)}</span></div>
       <div class="linha"><span class="label">${c.emTeste ? 'Teste termina em' : 'Vencimento'}</span><span class="mono">${vencimentoTexto}</span></div>
       <div class="linha"><span class="label">Situação</span><span class="status-pill ${statusClasse}">${statusTexto}</span></div>
       ${emailCapturaHtml}
       ${dadosAcessoHtml}
-      <button id="btn-notif" ${notifAtiva ? 'disabled' : ''}>${notifAtiva ? 'Notificações ativadas ✓' : 'Ativar notificações'}</button>
+      <button id="btn-notif" ${notifAtiva ? 'disabled' : ''}>${notifAtiva ? 'Notificações ativadas ✓' : textoBotaoNotif}</button>
       ${botaoSuporteHtml}
     `;
 
