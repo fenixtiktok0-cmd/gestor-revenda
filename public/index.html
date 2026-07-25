@@ -4,32 +4,85 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Revenda</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   :root {
-    --bg: #0B0F14; --surface: #131A22; --border: #232C37;
-    --text: #E6EDF3; --text-muted: #7C8798; --ok: #34D399;
+    --bg: #0B0F14; --surface: #131A22; --surface-2: #1B232D; --border: #232C37;
+    --text: #E6EDF3; --text-muted: #7C8798;
+    --ok: #34D399; --warn: #FBBF24; --danger: #F87171;
+    --ok-bg: rgba(52,211,153,0.12); --warn-bg: rgba(251,191,36,0.12); --danger-bg: rgba(248,113,113,0.12);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
-  header {
-    padding: 20px 24px; border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: center;
+  body { margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3 { font-family:'Space Grotesk',sans-serif; }
+  .mono { font-family:'JetBrains Mono',monospace; }
+
+  header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  header h1 { font-size:20px; margin:0; display:flex; align-items:center; gap:8px; }
+  .signal-dot { width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .header-info { font-size:12px; color:var(--text-muted); }
+
+  .btn { font-family:'Inter',sans-serif; font-weight:500; font-size:14px; padding:10px 16px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); cursor:pointer; }
+  .btn:hover { border-color:#38424F; }
+  .btn-primary { background:var(--ok); color:#06231A; border-color:var(--ok); font-weight:600; }
+  .btn-primary:hover { background:#3FE0AA; }
+
+  main { padding:24px; max-width:1100px; margin:0 auto; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .stat-card .label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+  .stat-card .value { font-size:28px; font-weight:600; }
+  .stat-card.ok .value { color:var(--ok); }
+  .stat-card.warn .value { color:var(--warn); }
+  .stat-card.danger .value { color:var(--danger); }
+
+  .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  input[type=text], input[type=date], input[type=email] {
+    background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 12px;
+    color:var(--text); font-family:'Inter',sans-serif; font-size:14px;
   }
-  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; }
-  .signal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-  main { padding: 32px 24px; max-width: 600px; margin: 0 auto; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
-  .card p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
-  button {
-    padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);
-    background: #1B232D; color: var(--text); cursor: pointer; font-size: 13px;
+  #busca { flex:1; min-width:180px; }
+
+  table { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  thead th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); padding:12px 14px; border-bottom:1px solid var(--border); font-weight:500; }
+  tbody td { padding:12px 14px; border-bottom:1px solid var(--border); font-size:14px; }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--surface-2); }
+
+  .badge { font-size:12px; padding:3px 9px; border-radius:100px; font-weight:500; }
+  .badge.ativo { background:var(--ok-bg); color:var(--ok); }
+  .badge.inativo { background:var(--surface-2); color:var(--text-muted); }
+
+  .actions { display:flex; gap:6px; }
+  .icon-btn { width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .icon-btn:hover { color:var(--text); border-color:#38424F; }
+  .icon-btn.del:hover { color:var(--danger); border-color:var(--danger); }
+
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px; width:100%; max-width:420px; max-height:88vh; overflow-y:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; }
+  .modal-header h2 { margin:0; font-size:18px; }
+  .modal-close-x { background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; padding:2px 6px; border-radius:6px; }
+  .modal-close-x:hover { color:var(--text); background:var(--surface-2); }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+  .field input { width:100%; }
+  .modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+
+  .empty-state { text-align:center; padding:50px 20px; color:var(--text-muted); }
+  .loading { text-align:center; padding:60px; color:var(--text-muted); }
+
+  @media (max-width:720px) {
+    table, thead { display:none; }
+    tbody, tr, td { display:block; width:100%; }
+    tbody tr { border-bottom:1px solid var(--border); padding:14px 16px; }
+    tbody td { border:none; padding:4px 0; display:flex; justify-content:space-between; }
+    tbody td::before { content: attr(data-label); color:var(--text-muted); font-size:12px; }
   }
-  button:hover { border-color: #38424F; }
-  .loading { text-align: center; padding: 60px; color: var(--text-muted); }
 </style>
 </head>
 <body>
@@ -39,17 +92,97 @@
 <div id="tela-painel" style="display:none;">
   <header>
     <h1><span class="signal-dot"></span> Painel de Revenda</h1>
-    <button onclick="sair()">Sair</button>
-  </header>
-  <main>
-    <div class="card">
-      <h2 style="font-family:'Space Grotesk',sans-serif; margin-top:0;">Login funcionando! ✅</h2>
-      <p>Você está logado como: <b id="email-usuario" style="color:var(--text);"></b></p>
-      <p>Seu ID de revendedor (usado pra separar seus dados de qualquer outro revendedor):</p>
-      <p style="font-family:monospace; background:#1B232D; padding:10px; border-radius:6px; word-break:break-all;" id="uid-usuario"></p>
-      <p>Esse é o primeiro passo do painel de revenda — a partir daqui, o resto das funcionalidades (cadastro de cliente, financeiro, mensagens, etc.) vai ser construído em cima dessa base de login.</p>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="header-info" id="email-usuario"></span>
+      <button class="btn" onclick="sair()">Sair</button>
     </div>
+  </header>
+
+  <main>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="label">Total de clientes</div>
+        <div class="value mono" id="stat-total">0</div>
+      </div>
+      <div class="stat-card ok">
+        <div class="label">Ativos</div>
+        <div class="value mono" id="stat-ativos">0</div>
+      </div>
+      <div class="stat-card warn">
+        <div class="label">Vencendo em 3 dias</div>
+        <div class="value mono" id="stat-3dias">0</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="label">Vencendo hoje</div>
+        <div class="value mono" id="stat-hoje">0</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="label">Vencidos</div>
+        <div class="value mono" id="stat-vencidos">0</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%; margin-bottom:16px; padding:13px;" onclick="abrirModal()">+ Novo cliente</button>
+
+    <div class="toolbar">
+      <input type="text" id="busca" placeholder="Buscar por nome ou telefone..." oninput="renderizar()">
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Usuário</th>
+          <th>Servidor</th>
+          <th>Vencimento</th>
+          <th>Plano</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-clientes"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state" style="display:none;">Nenhum cliente cadastrado ainda.</div>
   </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-header"><h2 id="modal-titulo">Novo cliente</h2><button class="modal-close-x" onclick="fecharModal()">✕</button></div>
+    <input type="hidden" id="cliente-id">
+    <div class="field">
+      <label>Nome</label>
+      <input type="text" id="f-nome" placeholder="Nome do cliente">
+    </div>
+    <div class="field">
+      <label>WhatsApp (com DDI, só números)</label>
+      <input type="text" id="f-whatsapp" placeholder="5521999999999">
+    </div>
+    <div class="field">
+      <label>Usuário</label>
+      <input type="text" id="f-usuario" placeholder="usuario123">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="text" id="f-senha" placeholder="senha123">
+    </div>
+    <div class="field">
+      <label>Servidor</label>
+      <input type="text" id="f-servidor" placeholder="Nome do servidor">
+    </div>
+    <div class="field">
+      <label>Valor do plano (R$)</label>
+      <input type="text" id="f-valor" placeholder="45.00">
+    </div>
+    <div class="field">
+      <label>Vencimento</label>
+      <input type="date" id="f-vencimento">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCliente()">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -64,22 +197,180 @@
   };
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
+  const FIREBASE_DB = firebaseConfig.databaseURL;
+
+  let uidRevendedor = null;
+  let clientes = [];
 
   auth.onAuthStateChanged((user) => {
     if (!user) {
       window.location.href = '/login.html';
       return;
     }
+    uidRevendedor = user.uid;
     document.getElementById('email-usuario').textContent = user.email;
-    document.getElementById('uid-usuario').textContent = user.uid;
     document.getElementById('tela-carregando').style.display = 'none';
     document.getElementById('tela-painel').style.display = 'block';
+    carregarClientes();
   });
 
   function sair() {
-    auth.signOut().then(() => {
-      window.location.href = '/login.html';
-    });
+    auth.signOut().then(() => { window.location.href = '/login.html'; });
+  }
+
+  function caminhoClientes() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/clientes`;
+  }
+
+  function diasAte(timestamp) {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const venc = new Date(timestamp); venc.setHours(0,0,0,0);
+    return Math.round((venc - hoje) / (1000*60*60*24));
+  }
+
+  function statusCalculado(c) {
+    return diasAte(c.vencimento) < 0 ? 'inativo' : 'ativo';
+  }
+
+  async function carregarClientes() {
+    const res = await fetch(`${caminhoClientes()}.json`);
+    const data = await res.json() || {};
+    clientes = Object.entries(data).map(([id, c]) => ({ id, ...c }));
+    atualizarStats();
+    renderizar();
+  }
+
+  function atualizarStats() {
+    const ativos = clientes.filter(c => statusCalculado(c) === 'ativo');
+    const em3dias = clientes.filter(c => diasAte(c.vencimento) === 3).length;
+    const hoje = clientes.filter(c => diasAte(c.vencimento) === 0).length;
+    const vencidos = clientes.filter(c => diasAte(c.vencimento) < 0).length;
+
+    document.getElementById('stat-total').textContent = clientes.length;
+    document.getElementById('stat-ativos').textContent = ativos.length;
+    document.getElementById('stat-3dias').textContent = em3dias;
+    document.getElementById('stat-hoje').textContent = hoje;
+    document.getElementById('stat-vencidos').textContent = vencidos;
+  }
+
+  function renderizar() {
+    const busca = document.getElementById('busca').value.toLowerCase();
+    const buscaDigitos = busca.replace(/\D/g, '');
+    let lista = clientes.filter(c =>
+      c.nome?.toLowerCase().includes(busca) ||
+      (buscaDigitos.length > 0 && c.whatsapp?.includes(buscaDigitos))
+    );
+    lista.sort((a,b) => a.vencimento - b.vencimento);
+
+    const tbody = document.getElementById('tabela-clientes');
+    const emptyState = document.getElementById('empty-state');
+
+    if (lista.length === 0) {
+      tbody.innerHTML = '';
+      emptyState.style.display = 'block';
+      return;
+    }
+    emptyState.style.display = 'none';
+
+    tbody.innerHTML = lista.map(c => {
+      const dias = diasAte(c.vencimento);
+      const dataFormatada = new Date(c.vencimento).toLocaleDateString('pt-BR');
+      const diasTexto = dias < 0 ? `${Math.abs(dias)}d atrasado` : dias === 0 ? 'vence hoje' : `em ${dias}d`;
+      const status = statusCalculado(c);
+
+      return `
+        <tr>
+          <td data-label="Cliente"><b>${c.nome}</b></td>
+          <td data-label="Usuário" class="mono">${c.usuario || '—'}</td>
+          <td data-label="Servidor">${c.servidor || '—'}</td>
+          <td data-label="Vencimento"><div class="mono">${dataFormatada}</div><div style="font-size:12px; color:var(--text-muted);">${diasTexto}</div></td>
+          <td data-label="Plano" class="mono">R$ ${Number(c.planoValor||0).toFixed(2)}</td>
+          <td data-label="Status"><span class="badge ${status}">${status}</span></td>
+          <td data-label="Ações">
+            <div class="actions">
+              <a class="icon-btn" href="https://wa.me/${c.whatsapp}" target="_blank" title="WhatsApp">💬</a>
+              <button class="icon-btn" onclick="editarCliente('${c.id}')" title="Editar">✏️</button>
+              <button class="icon-btn del" onclick="excluirCliente('${c.id}')" title="Excluir">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function abrirModal() {
+    document.getElementById('modal-titulo').textContent = 'Novo cliente';
+    document.getElementById('cliente-id').value = '';
+    document.getElementById('f-nome').value = '';
+    document.getElementById('f-whatsapp').value = '';
+    document.getElementById('f-usuario').value = '';
+    document.getElementById('f-senha').value = '';
+    document.getElementById('f-servidor').value = '';
+    document.getElementById('f-valor').value = '';
+    document.getElementById('f-vencimento').value = '';
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  function fecharModal() {
+    document.getElementById('overlay').classList.remove('open');
+  }
+
+  function editarCliente(id) {
+    const c = clientes.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('modal-titulo').textContent = 'Editar cliente';
+    document.getElementById('cliente-id').value = c.id;
+    document.getElementById('f-nome').value = c.nome || '';
+    document.getElementById('f-whatsapp').value = c.whatsapp || '';
+    document.getElementById('f-usuario').value = c.usuario || '';
+    document.getElementById('f-senha').value = c.senha || '';
+    document.getElementById('f-servidor').value = c.servidor || '';
+    document.getElementById('f-valor').value = c.planoValor || '';
+    document.getElementById('f-vencimento').value = new Date(c.vencimento).toISOString().slice(0,10);
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  async function salvarCliente() {
+    const id = document.getElementById('cliente-id').value;
+    const nome = document.getElementById('f-nome').value.trim();
+    const whatsapp = document.getElementById('f-whatsapp').value.replace(/\D/g,'');
+    const usuario = document.getElementById('f-usuario').value.trim();
+    const senha = document.getElementById('f-senha').value.trim();
+    const servidor = document.getElementById('f-servidor').value.trim();
+    const planoValor = parseFloat(document.getElementById('f-valor').value) || 0;
+    const vencimentoInput = document.getElementById('f-vencimento').value;
+
+    if (!nome || !whatsapp || !vencimentoInput) {
+      alert('Preenche nome, WhatsApp e vencimento.');
+      return;
+    }
+
+    const vencimento = new Date(vencimentoInput + 'T12:00:00').getTime();
+
+    if (id) {
+      await fetch(`${caminhoClientes()}/${id}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nome, whatsapp, usuario, senha, servidor, planoValor, vencimento })
+      });
+    } else {
+      const novoCliente = {
+        nome, whatsapp, usuario, senha, servidor, planoValor, vencimento,
+        criadoEm: Date.now()
+      };
+      await fetch(`${caminhoClientes()}.json`, {
+        method: 'POST',
+        body: JSON.stringify(novoCliente)
+      });
+    }
+
+    fecharModal();
+    await carregarClientes();
+  }
+
+  async function excluirCliente(id) {
+    if (!confirm('Excluir esse cliente?')) return;
+    await fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
+    await carregarClientes();
   }
 </script>
 
