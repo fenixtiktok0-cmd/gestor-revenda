@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Revenda</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --bg: #0B0F14; --surface: #131A22; --border: #232C37;
+    --text: #E6EDF3; --text-muted: #7C8798; --ok: #34D399;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+  header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .signal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  main { padding: 32px 24px; max-width: 600px; margin: 0 auto; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .card p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+  button {
+    padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border);
+    background: #1B232D; color: var(--text); cursor: pointer; font-size: 13px;
+  }
+  button:hover { border-color: #38424F; }
+  .loading { text-align: center; padding: 60px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div id="tela-carregando" class="loading">Carregando...</div>
+
+<div id="tela-painel" style="display:none;">
+  <header>
+    <h1><span class="signal-dot"></span> Painel de Revenda</h1>
+    <button onclick="sair()">Sair</button>
+  </header>
+  <main>
+    <div class="card">
+      <h2 style="font-family:'Space Grotesk',sans-serif; margin-top:0;">Login funcionando! ✅</h2>
+      <p>Você está logado como: <b id="email-usuario" style="color:var(--text);"></b></p>
+      <p>Seu ID de revendedor (usado pra separar seus dados de qualquer outro revendedor):</p>
+      <p style="font-family:monospace; background:#1B232D; padding:10px; border-radius:6px; word-break:break-all;" id="uid-usuario"></p>
+      <p>Esse é o primeiro passo do painel de revenda — a partir daqui, o resto das funcionalidades (cadastro de cliente, financeiro, mensagens, etc.) vai ser construído em cima dessa base de login.</p>
+    </div>
+  </main>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_hPyEcvWiJ_XqwwbeDvFkUYWL2Rdk-5Y",
+    authDomain: "gestor-revenda-a0e61.firebaseapp.com",
+    databaseURL: "https://gestor-revenda-a0e61-default-rtdb.firebaseio.com",
+    projectId: "gestor-revenda-a0e61",
+    storageBucket: "gestor-revenda-a0e61.firebasestorage.app",
+    messagingSenderId: "1026444053849",
+    appId: "1:1026444053849:web:4590233bd375d70a139048"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  auth.onAuthStateChanged((user) => {
+    if (!user) {
+      window.location.href = '/login.html';
+      return;
+    }
+    document.getElementById('email-usuario').textContent = user.email;
+    document.getElementById('uid-usuario').textContent = user.uid;
+    document.getElementById('tela-carregando').style.display = 'none';
+    document.getElementById('tela-painel').style.display = 'block';
+  });
+
+  function sair() {
+    auth.signOut().then(() => {
+      window.location.href = '/login.html';
+    });
+  }
+</script>
+
+</body>
+</html>

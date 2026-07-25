@@ -1,0 +1,10 @@
+{
+  "name": "painel-revenda",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^12.1.0",
+    "resend": "^3.2.0"
+  }
+}
