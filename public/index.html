@@ -108,6 +108,7 @@
       <span class="header-info" id="email-usuario"></span>
       <button class="btn" onclick="abrirServidores()">🖥️ Servidores</button>
       <button class="btn" onclick="abrirAplicativos()">📲 Aplicativos</button>
+      <button class="btn" onclick="abrirConfiguracoes()">⚙️ Configurações</button>
       <button class="btn" id="btn-criar-revendedor" style="display:none; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="abrirCriarRevendedor()">👑 Criar revendedor</button>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
@@ -219,6 +220,21 @@
     <div id="lista-servidores" style="margin-top:16px;"></div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharServidores()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-configuracoes">
+  <div class="modal">
+    <div class="modal-header"><h2>⚙️ Configurações</h2><button class="modal-close-x" onclick="fecharConfiguracoes()">✕</button></div>
+    <div class="field">
+      <label>Seu WhatsApp (com DDI, só números)</label>
+      <input type="text" id="cfg-whatsapp" placeholder="5521999999999">
+      <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Vai ser usado como botão de suporte na página do cliente (quando construirmos ela).</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharConfiguracoes()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConfiguracoes()">Salvar</button>
     </div>
   </div>
 </div>
@@ -1016,6 +1032,30 @@
 
     fecharModal();
     await carregarClientes();
+  }
+
+  // ---- Configurações ----
+  function caminhoConfig() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/config`;
+  }
+  async function abrirConfiguracoes() {
+    const res = await fetch(`${caminhoConfig()}.json`);
+    const config = await res.json() || {};
+    document.getElementById('cfg-whatsapp').value = config.whatsappSuporte || '';
+    document.getElementById('overlay-configuracoes').classList.add('open');
+  }
+  function fecharConfiguracoes() {
+    document.getElementById('overlay-configuracoes').classList.remove('open');
+  }
+  async function salvarConfiguracoes() {
+    const whatsapp = document.getElementById('cfg-whatsapp').value.replace(/\D/g, '');
+    if (!whatsapp) { alert('Preenche o número.'); return; }
+    await fetch(`${caminhoConfig()}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ whatsappSuporte: whatsapp })
+    });
+    fecharConfiguracoes();
+    alert('Configurações salvas!');
   }
 
   // ---- Renovação ----
