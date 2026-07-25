@@ -80,6 +80,11 @@
   .lista-item:last-child { border-bottom:none; }
   .del-mini { background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; }
 
+  .app-checklist { display:flex; flex-direction:column; gap:6px; max-height:160px; overflow-y:auto; }
+  .app-checklist-item { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; font-size:13px; cursor:pointer; }
+  .app-checklist-item input[type=checkbox] { flex-shrink:0; width:16px; height:16px; accent-color:var(--ok); }
+  .app-checklist-item .app-codigo { color:var(--text-muted); font-size:12px; margin-left:auto; }
+
   @media (max-width:720px) {
     table, thead { display:none; }
     tbody, tr, td { display:block; width:100%; }
@@ -99,6 +104,7 @@
     <div style="display:flex; align-items:center; gap:14px;">
       <span class="header-info" id="email-usuario"></span>
       <button class="btn" onclick="abrirServidores()">🖥️ Servidores</button>
+      <button class="btn" onclick="abrirAplicativos()">📲 Aplicativos</button>
       <button class="btn" id="btn-criar-revendedor" style="display:none; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="abrirCriarRevendedor()">👑 Criar revendedor</button>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
@@ -214,6 +220,30 @@
   </div>
 </div>
 
+<div class="overlay" id="overlay-aplicativos">
+  <div class="modal">
+    <div class="modal-header"><h2>📲 Aplicativos</h2><button class="modal-close-x" onclick="fecharAplicativos()">✕</button></div>
+    <input type="hidden" id="editando-app-id">
+    <div class="field">
+      <label>Nome do app</label>
+      <input type="text" id="novo-app-nome" placeholder="Ex: IBO Player">
+    </div>
+    <div class="field">
+      <label>Código de ativação</label>
+      <input type="text" id="novo-app-codigo" placeholder="Ex: 123456">
+    </div>
+    <div class="field">
+      <label>Servidores compatíveis</label>
+      <div id="novo-app-servidores-lista" class="app-checklist"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;" id="btn-salvar-app" onclick="adicionarAplicativo()">Adicionar</button>
+    <div id="lista-aplicativos" style="margin-top:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharAplicativos()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay-criar-revendedor">
   <div class="modal">
     <div class="modal-header"><h2>👑 Criar revendedor</h2><button class="modal-close-x" onclick="fecharCriarRevendedor()">✕</button></div>
@@ -266,9 +296,15 @@
     </div>
     <div class="field">
       <label>Servidor</label>
-      <select id="f-servidor"></select>
+      <select id="f-servidor" onchange="preencherChecklistAplicativos(this.value, null)"></select>
       <div style="margin-top:6px;">
         <a href="javascript:void(0)" onclick="abrirServidores()" style="font-size:12px; color:var(--text-muted);">+ cadastrar novo servidor</a>
+      </div>
+    </div>
+    <div class="field">
+      <label>Aplicativos que o cliente usa</label>
+      <div id="f-aplicativos-lista" style="display:flex; flex-direction:column; gap:6px;">
+        <div style="color:var(--text-muted); font-size:12px;">Escolhe o servidor do cliente primeiro.</div>
       </div>
     </div>
     <div class="field">
@@ -460,14 +496,142 @@
   }
 
   let servidores = [];
+  let aplicativos = [];
 
   async function carregarClientes() {
     const res = await fetch(`${caminhoClientes()}.json`);
     const data = await res.json() || {};
     clientes = Object.entries(data).map(([id, c]) => ({ id, ...c }));
     await carregarServidores();
+    await carregarAplicativos();
     atualizarStats();
     renderizar();
+  }
+
+  function caminhoAplicativos() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/aplicativos`;
+  }
+
+  async function carregarAplicativos() {
+    const res = await fetch(`${caminhoAplicativos()}.json`);
+    const data = await res.json() || {};
+    aplicativos = Object.entries(data).map(([id, a]) => ({ id, ...a }));
+  }
+
+  function preencherChecklistAplicativos(servidorNome, selecionados) {
+    const container = document.getElementById('f-aplicativos-lista');
+    const appsDoServidor = servidorNome
+      ? aplicativos.filter(a => (a.servidores || []).includes(servidorNome))
+      : [];
+
+    if (!servidorNome) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Escolhe o servidor do cliente primeiro.</div>';
+      return;
+    }
+    if (appsDoServidor.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Nenhum aplicativo vinculado a esse servidor ainda.</div>';
+      return;
+    }
+
+    const idsMarcados = selecionados !== null && selecionados !== undefined ? selecionados : appsDoServidor.map(a => a.id);
+
+    container.className = 'app-checklist';
+    container.innerHTML = appsDoServidor.map(a => `
+      <label class="app-checklist-item">
+        <input type="checkbox" class="chk-app" value="${a.id}" ${idsMarcados.includes(a.id) ? 'checked' : ''}>
+        <span>${a.nome}</span>
+        <span class="mono app-codigo">${a.codigo}</span>
+      </label>
+    `).join('');
+  }
+
+  function abrirAplicativos() {
+    document.getElementById('editando-app-id').value = '';
+    document.getElementById('novo-app-nome').value = '';
+    document.getElementById('novo-app-codigo').value = '';
+    document.getElementById('btn-salvar-app').textContent = 'Adicionar';
+    preencherChecklistServidoresApp([]);
+    renderizarListaAplicativos();
+    document.getElementById('overlay-aplicativos').classList.add('open');
+  }
+  function fecharAplicativos() {
+    document.getElementById('overlay-aplicativos').classList.remove('open');
+  }
+  function preencherChecklistServidoresApp(marcados) {
+    const container = document.getElementById('novo-app-servidores-lista');
+    if (servidores.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Cadastra um servidor primeiro.</div>';
+      return;
+    }
+    container.innerHTML = servidores.map(s => `
+      <label class="app-checklist-item">
+        <input type="checkbox" class="chk-app-servidor" value="${s.nome}" ${marcados.includes(s.nome) ? 'checked' : ''}>
+        <span>${s.nome}</span>
+      </label>
+    `).join('');
+  }
+  function editarAplicativo(id) {
+    const app = aplicativos.find(a => a.id === id);
+    if (!app) return;
+    document.getElementById('editando-app-id').value = id;
+    document.getElementById('novo-app-nome').value = app.nome;
+    document.getElementById('novo-app-codigo').value = app.codigo;
+    preencherChecklistServidoresApp(app.servidores || []);
+    document.getElementById('btn-salvar-app').textContent = 'Salvar alteração';
+  }
+  function renderizarListaAplicativos() {
+    const container = document.getElementById('lista-aplicativos');
+    if (aplicativos.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhum aplicativo cadastrado ainda.</div>';
+      return;
+    }
+    container.innerHTML = aplicativos.map(a => `
+      <div class="lista-item">
+        <span>
+          ${a.nome} <span class="mono" style="color:var(--text-muted); font-size:12px;">(${a.codigo})</span>
+          <br>
+          <span style="font-size:11px; ${(a.servidores && a.servidores.length) ? 'color:var(--ok);' : 'color:var(--danger);'}">
+            ${(a.servidores && a.servidores.length) ? '🖥️ ' + a.servidores.join(', ') : '⚠️ sem servidor vinculado'}
+          </span>
+        </span>
+        <span style="display:flex; gap:10px;">
+          <button class="del-mini" style="color:var(--text-muted);" onclick="editarAplicativo('${a.id}')">editar</button>
+          <button class="del-mini" onclick="excluirAplicativo('${a.id}')">remover</button>
+        </span>
+      </div>
+    `).join('');
+  }
+  async function adicionarAplicativo() {
+    const idEditando = document.getElementById('editando-app-id').value;
+    const nome = document.getElementById('novo-app-nome').value.trim();
+    const codigo = document.getElementById('novo-app-codigo').value.trim();
+    const servidoresMarcados = Array.from(document.querySelectorAll('.chk-app-servidor:checked')).map(el => el.value);
+    if (!nome || !codigo) { alert('Preenche o nome e o código.'); return; }
+
+    if (idEditando) {
+      await fetch(`${caminhoAplicativos()}/${idEditando}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nome, codigo, servidores: servidoresMarcados })
+      });
+    } else {
+      await fetch(`${caminhoAplicativos()}.json`, {
+        method: 'POST',
+        body: JSON.stringify({ nome, codigo, servidores: servidoresMarcados })
+      });
+    }
+
+    document.getElementById('editando-app-id').value = '';
+    document.getElementById('novo-app-nome').value = '';
+    document.getElementById('novo-app-codigo').value = '';
+    document.getElementById('btn-salvar-app').textContent = 'Adicionar';
+    await carregarAplicativos();
+    renderizarListaAplicativos();
+  }
+  async function excluirAplicativo(id) {
+    if (!confirm('Remover esse aplicativo da lista?')) return;
+    await fetch(`${caminhoAplicativos()}/${id}.json`, { method: 'DELETE' });
+    await carregarAplicativos();
+    renderizarListaAplicativos();
   }
 
   function caminhoServidores() {
@@ -655,6 +819,7 @@
         if (servidorEncontrado) {
           servidorDetectado = servidorEncontrado.nome;
           document.getElementById('f-servidor').value = servidorDetectado;
+          preencherChecklistAplicativos(servidorDetectado, null);
         }
       }
 
@@ -677,6 +842,7 @@
     document.getElementById('f-senha').value = '';
     preencherSelectServidores();
     document.getElementById('f-servidor').value = '';
+    preencherChecklistAplicativos('', null);
     document.getElementById('f-valor').value = '';
     document.getElementById('f-vencimento').value = '';
     document.getElementById('overlay').classList.add('open');
@@ -699,6 +865,7 @@
     document.getElementById('f-senha').value = c.senha || '';
     preencherSelectServidores();
     document.getElementById('f-servidor').value = c.servidor || '';
+    preencherChecklistAplicativos(c.servidor || '', c.aplicativosIds || []);
     document.getElementById('f-valor').value = c.planoValor || '';
     document.getElementById('f-vencimento').value = new Date(c.vencimento).toISOString().slice(0,10);
     document.getElementById('overlay').classList.add('open');
@@ -712,6 +879,7 @@
     const usuario = document.getElementById('f-usuario').value.trim();
     const senha = document.getElementById('f-senha').value.trim();
     const servidor = document.getElementById('f-servidor').value.trim();
+    const aplicativosIds = Array.from(document.querySelectorAll('.chk-app:checked')).map(el => el.value);
     const planoValor = parseFloat(document.getElementById('f-valor').value) || 0;
     const vencimentoInput = document.getElementById('f-vencimento').value;
 
@@ -725,11 +893,11 @@
     if (id) {
       await fetch(`${caminhoClientes()}/${id}.json`, {
         method: 'PATCH',
-        body: JSON.stringify({ nome, m3uLink, whatsapp, usuario, senha, servidor, planoValor, vencimento })
+        body: JSON.stringify({ nome, m3uLink, whatsapp, usuario, senha, servidor, aplicativosIds, planoValor, vencimento })
       });
     } else {
       const novoCliente = {
-        nome, m3uLink, whatsapp, usuario, senha, servidor, planoValor, vencimento,
+        nome, m3uLink, whatsapp, usuario, senha, servidor, aplicativosIds, planoValor, vencimento,
         criadoEm: Date.now()
       };
       await fetch(`${caminhoClientes()}.json`, {
