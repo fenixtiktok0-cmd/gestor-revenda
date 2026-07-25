@@ -76,6 +76,10 @@
   .empty-state { text-align:center; padding:50px 20px; color:var(--text-muted); }
   .loading { text-align:center; padding:60px; color:var(--text-muted); }
 
+  .lista-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; }
+  .lista-item:last-child { border-bottom:none; }
+  .del-mini { background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; }
+
   @media (max-width:720px) {
     table, thead { display:none; }
     tbody, tr, td { display:block; width:100%; }
@@ -94,6 +98,7 @@
     <h1><span class="signal-dot"></span> Painel de Revenda</h1>
     <div style="display:flex; align-items:center; gap:14px;">
       <span class="header-info" id="email-usuario"></span>
+      <button class="btn" onclick="abrirServidores()">🖥️ Servidores</button>
       <button class="btn" id="btn-criar-revendedor" style="display:none; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="abrirCriarRevendedor()">👑 Criar revendedor</button>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
@@ -187,6 +192,23 @@
   </main>
 </div>
 
+<div class="overlay" id="overlay-servidores">
+  <div class="modal">
+    <div class="modal-header"><h2>🖥️ Servidores</h2><button class="modal-close-x" onclick="fecharServidores()">✕</button></div>
+    <div class="field">
+      <label>Novo servidor</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="novo-servidor-nome" placeholder="Nome do servidor">
+        <button class="btn btn-primary" onclick="adicionarServidor()">Adicionar</button>
+      </div>
+    </div>
+    <div id="lista-servidores" style="margin-top:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharServidores()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay-criar-revendedor">
   <div class="modal">
     <div class="modal-header"><h2>👑 Criar revendedor</h2><button class="modal-close-x" onclick="fecharCriarRevendedor()">✕</button></div>
@@ -231,7 +253,10 @@
     </div>
     <div class="field">
       <label>Servidor</label>
-      <input type="text" id="f-servidor" placeholder="Nome do servidor">
+      <select id="f-servidor"></select>
+      <div style="margin-top:6px;">
+        <a href="javascript:void(0)" onclick="abrirServidores()" style="font-size:12px; color:var(--text-muted);">+ cadastrar novo servidor</a>
+      </div>
     </div>
     <div class="field">
       <label>Valor do plano (R$)</label>
@@ -421,12 +446,73 @@
     return diasAte(c.vencimento) < 0 ? 'inativo' : 'ativo';
   }
 
+  let servidores = [];
+
   async function carregarClientes() {
     const res = await fetch(`${caminhoClientes()}.json`);
     const data = await res.json() || {};
     clientes = Object.entries(data).map(([id, c]) => ({ id, ...c }));
+    await carregarServidores();
     atualizarStats();
     renderizar();
+  }
+
+  function caminhoServidores() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/servidores`;
+  }
+
+  async function carregarServidores() {
+    const res = await fetch(`${caminhoServidores()}.json`);
+    const data = await res.json() || {};
+    servidores = Object.entries(data).map(([id, s]) => ({ id, ...s }));
+    preencherSelectServidores();
+  }
+
+  function preencherSelectServidores() {
+    const select = document.getElementById('f-servidor');
+    const valorAtual = select.value;
+    select.innerHTML = servidores.length
+      ? servidores.map(s => `<option value="${s.nome}">${s.nome}</option>`).join('')
+      : '<option value="">Nenhum servidor cadastrado</option>';
+    if (valorAtual) select.value = valorAtual;
+  }
+
+  function abrirServidores() {
+    renderizarListaServidores();
+    document.getElementById('overlay-servidores').classList.add('open');
+  }
+  function fecharServidores() {
+    document.getElementById('overlay-servidores').classList.remove('open');
+  }
+  function renderizarListaServidores() {
+    const container = document.getElementById('lista-servidores');
+    if (servidores.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhum servidor cadastrado ainda.</div>';
+      return;
+    }
+    container.innerHTML = servidores.map(s => `
+      <div class="lista-item">
+        <span>${s.nome}</span>
+        <button class="del-mini" onclick="excluirServidor('${s.id}')">remover</button>
+      </div>
+    `).join('');
+  }
+  async function adicionarServidor() {
+    const nome = document.getElementById('novo-servidor-nome').value.trim();
+    if (!nome) return;
+    await fetch(`${caminhoServidores()}.json`, {
+      method: 'POST',
+      body: JSON.stringify({ nome })
+    });
+    document.getElementById('novo-servidor-nome').value = '';
+    await carregarServidores();
+    renderizarListaServidores();
+  }
+  async function excluirServidor(id) {
+    if (!confirm('Remover esse servidor da lista?')) return;
+    await fetch(`${caminhoServidores()}/${id}.json`, { method: 'DELETE' });
+    await carregarServidores();
+    renderizarListaServidores();
   }
 
   function atualizarStats() {
@@ -494,6 +580,7 @@
     document.getElementById('f-whatsapp').value = '';
     document.getElementById('f-usuario').value = '';
     document.getElementById('f-senha').value = '';
+    preencherSelectServidores();
     document.getElementById('f-servidor').value = '';
     document.getElementById('f-valor').value = '';
     document.getElementById('f-vencimento').value = '';
@@ -513,6 +600,7 @@
     document.getElementById('f-whatsapp').value = c.whatsapp || '';
     document.getElementById('f-usuario').value = c.usuario || '';
     document.getElementById('f-senha').value = c.senha || '';
+    preencherSelectServidores();
     document.getElementById('f-servidor').value = c.servidor || '';
     document.getElementById('f-valor').value = c.planoValor || '';
     document.getElementById('f-vencimento').value = new Date(c.vencimento).toISOString().slice(0,10);
