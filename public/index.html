@@ -86,6 +86,7 @@
   .app-checklist-item .app-codigo { color:var(--text-muted); font-size:12px; margin-left:auto; }
 
   .horas-chip.active { background:var(--ok); color:#06231A; border-color:var(--ok); font-weight:600; }
+  .dia-chip.active, .base-chip.active { background:var(--ok); color:#06231A; border-color:var(--ok); font-weight:600; }
 
   @media (max-width:720px) {
     table, thead { display:none; }
@@ -218,6 +219,51 @@
     <div id="lista-servidores" style="margin-top:16px;"></div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharServidores()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-renovar">
+  <div class="modal">
+    <div class="modal-header"><h2>Renovar cliente</h2><button class="modal-close-x" onclick="fecharRenovacao()">✕</button></div>
+    <input type="hidden" id="renovar-cliente-id">
+
+    <div id="renovar-sync-bloco" style="display:none; margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--border);">
+      <button class="btn" style="width:100%; background:var(--ok); border-color:var(--ok); color:#06231A; font-weight:600;" onclick="sincronizarRenovacao()">
+        📡 Sincronizar com servidor (puxa a data real de lá)
+      </button>
+      <div style="text-align:center; font-size:12px; color:var(--text-muted); margin:10px 0;">ou renove manualmente abaixo</div>
+    </div>
+
+    <div class="field">
+      <label>Renovar por quantos dias?</label>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button type="button" class="btn dia-chip" data-dias="15" onclick="setDiasRenovacao(15)" style="padding:6px 12px; font-size:12px;">+15</button>
+        <button type="button" class="btn dia-chip active" data-dias="30" onclick="setDiasRenovacao(30)" style="padding:6px 12px; font-size:12px;">+30</button>
+        <button type="button" class="btn dia-chip" data-dias="60" onclick="setDiasRenovacao(60)" style="padding:6px 12px; font-size:12px;">+60</button>
+        <button type="button" class="btn dia-chip" data-dias="90" onclick="setDiasRenovacao(90)" style="padding:6px 12px; font-size:12px;">+90</button>
+        <button type="button" class="btn dia-chip" data-dias="180" onclick="setDiasRenovacao(180)" style="padding:6px 12px; font-size:12px;">+180</button>
+        <button type="button" class="btn dia-chip" data-dias="360" onclick="setDiasRenovacao(360)" style="padding:6px 12px; font-size:12px;">+360</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Base da renovação</label>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn base-chip active" id="base-vencimento" onclick="setBaseRenovacao('vencimento')" style="padding:8px 12px; font-size:12px;">A partir do vencimento atual</button>
+        <button type="button" class="btn base-chip" id="base-hoje" onclick="setBaseRenovacao('hoje')" style="padding:8px 12px; font-size:12px;">A partir de hoje</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Ou escolha uma data exata (opcional)</label>
+      <input type="date" id="renovar-data-manual">
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label>Novo vencimento</label>
+      <div class="mono" id="preview-vencimento" style="font-size:16px; color:var(--ok);">—</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharRenovacao()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarRenovacao()">Renovar</button>
     </div>
   </div>
 </div>
@@ -802,6 +848,7 @@
           <td data-label="Ações">
             <div class="actions">
               <a class="icon-btn" href="https://wa.me/${c.whatsapp}" target="_blank" title="WhatsApp">💬</a>
+              <button class="icon-btn" onclick="abrirRenovacao('${c.id}')" title="Renovar" style="color:var(--ok);">🔄</button>
               <button class="icon-btn" onclick="editarCliente('${c.id}')" title="Editar">✏️</button>
               <button class="icon-btn del" onclick="excluirCliente('${c.id}')" title="Excluir">🗑️</button>
             </div>
@@ -971,11 +1018,127 @@
     await carregarClientes();
   }
 
+  // ---- Renovação ----
+  let diasRenovacao = 30;
+  let baseRenovacao = 'vencimento';
+  let clienteRenovandoId = null;
+
+  function abrirRenovacao(id) {
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+    clienteRenovandoId = id;
+    document.getElementById('renovar-cliente-id').value = id;
+    document.getElementById('renovar-data-manual').value = '';
+    setDiasRenovacao(30);
+    setBaseRenovacao('vencimento');
+    document.getElementById('renovar-sync-bloco').style.display = cliente.m3uLink ? 'block' : 'none';
+    document.getElementById('overlay-renovar').classList.add('open');
+  }
+  function fecharRenovacao() {
+    document.getElementById('overlay-renovar').classList.remove('open');
+  }
+  function setDiasRenovacao(dias) {
+    diasRenovacao = dias;
+    document.querySelectorAll('.dia-chip').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.dias) === dias);
+    });
+    document.getElementById('renovar-data-manual').value = '';
+    atualizarPreviewRenovacao();
+  }
+  function setBaseRenovacao(tipo) {
+    baseRenovacao = tipo;
+    document.getElementById('base-vencimento').classList.toggle('active', tipo === 'vencimento');
+    document.getElementById('base-hoje').classList.toggle('active', tipo === 'hoje');
+    atualizarPreviewRenovacao();
+  }
+  function calcularNovoVencimento() {
+    const dataManual = document.getElementById('renovar-data-manual').value;
+    if (dataManual) return new Date(dataManual + 'T12:00:00').getTime();
+
+    const cliente = clientes.find(c => c.id === clienteRenovandoId);
+    if (!cliente) return null;
+    const agora = Date.now();
+    const base = baseRenovacao === 'hoje' ? agora : Math.max(cliente.vencimento, agora);
+    return base + diasRenovacao * 24 * 60 * 60 * 1000;
+  }
+  function atualizarPreviewRenovacao() {
+    const novoVencimento = calcularNovoVencimento();
+    document.getElementById('preview-vencimento').textContent = novoVencimento
+      ? new Date(novoVencimento).toLocaleDateString('pt-BR')
+      : '—';
+  }
+
+  async function confirmarRenovacao() {
+    const id = document.getElementById('renovar-cliente-id').value;
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+
+    const novoVencimento = calcularNovoVencimento();
+    if (!novoVencimento) { alert('Escolhe os dias ou uma data.'); return; }
+
+    await fetch(`${caminhoClientes()}/${id}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ vencimento: novoVencimento, emTeste: false })
+    });
+
+    fecharRenovacao();
+    await carregarClientes();
+
+    const mensagem = `Olá ${cliente.nome}! Seu plano foi renovado com sucesso ✅\nNovo vencimento: ${new Date(novoVencimento).toLocaleDateString('pt-BR')}\nValor: R$ ${Number(cliente.planoValor||0).toFixed(2)}\nObrigado pela confiança!`;
+    window.open(`https://wa.me/${cliente.whatsapp}?text=${encodeURIComponent(mensagem)}`, '_blank');
+  }
+
+  async function sincronizarRenovacao() {
+    const id = document.getElementById('renovar-cliente-id').value;
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente || !cliente.m3uLink) return;
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/consultar-iptv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ link: cliente.m3uLink })
+      });
+      const data = await res.json();
+
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      if (!data.vencimento) { alert('O painel não retornou uma data de vencimento.'); return; }
+      if (data.vencimento <= cliente.vencimento) {
+        alert('Consultei o painel, mas a data lá está igual ou anterior à que já temos aqui — nenhuma renovação nova encontrada.');
+        return;
+      }
+
+      await fetch(`${caminhoClientes()}/${id}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ vencimento: data.vencimento, emTeste: false })
+      });
+
+      fecharRenovacao();
+      await carregarClientes();
+
+      const mensagem = `Olá ${cliente.nome}! Seu plano foi renovado com sucesso ✅\nNovo vencimento: ${new Date(data.vencimento).toLocaleDateString('pt-BR')}\nValor: R$ ${Number(cliente.planoValor||0).toFixed(2)}\nObrigado pela confiança!`;
+      window.open(`https://wa.me/${cliente.whatsapp}?text=${encodeURIComponent(mensagem)}`, '_blank');
+
+      alert(`✅ Renovação detectada! Novo vencimento: ${new Date(data.vencimento).toLocaleDateString('pt-BR')}`);
+    } catch (err) {
+      alert('Erro ao sincronizar com o painel.');
+    }
+  }
+
   async function excluirCliente(id) {
     if (!confirm('Excluir esse cliente?')) return;
     await fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
     await carregarClientes();
   }
+
+  document.getElementById('renovar-data-manual').addEventListener('change', () => {
+    document.querySelectorAll('.dia-chip').forEach(el => el.classList.remove('active'));
+    atualizarPreviewRenovacao();
+  });
 </script>
 
 </body>
