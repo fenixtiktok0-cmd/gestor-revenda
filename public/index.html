@@ -865,6 +865,7 @@
             <div class="actions">
               <a class="icon-btn" href="https://wa.me/${c.whatsapp}" target="_blank" title="WhatsApp">💬</a>
               <button class="icon-btn" onclick="abrirRenovacao('${c.id}')" title="Renovar" style="color:var(--ok);">🔄</button>
+              <button class="icon-btn" onclick="enviarPushManual('${c.id}')" title="Enviar push">🔔</button>
               <a class="icon-btn" href="https://wa.me/${c.whatsapp}?text=${encodeURIComponent('Olá ' + c.nome + '! Acompanhe seu plano por aqui: ' + window.location.origin + '/meu-plano.html?rev=' + uidRevendedor + '&id=' + c.id)}" target="_blank" title="Enviar link do painel">🔗</a>
               <button class="icon-btn" onclick="editarCliente('${c.id}')" title="Editar">✏️</button>
               <button class="icon-btn del" onclick="excluirCliente('${c.id}')" title="Excluir">🗑️</button>
@@ -1167,6 +1168,25 @@
       alert(`✅ Renovação detectada! Novo vencimento: ${new Date(data.vencimento).toLocaleDateString('pt-BR')}`);
     } catch (err) {
       alert('Erro ao sincronizar com o painel.');
+    }
+  }
+
+  async function enviarPushManual(id) {
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/notificar-manual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ clienteId: id })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      alert(data.enviado ? 'Push enviado!' : 'Não enviado: ' + (data.motivo || 'erro desconhecido'));
+    } catch (err) {
+      alert('Erro ao enviar push.');
     }
   }
 
