@@ -106,13 +106,28 @@
     <h1><span class="signal-dot"></span> Painel de Revenda</h1>
     <div style="display:flex; align-items:center; gap:14px;">
       <span class="header-info" id="email-usuario"></span>
-      <button class="btn" onclick="abrirServidores()">🖥️ Servidores</button>
-      <button class="btn" onclick="abrirAplicativos()">📲 Aplicativos</button>
-      <button class="btn" onclick="abrirConfiguracoes()">⚙️ Configurações</button>
-      <button class="btn" id="btn-criar-revendedor" style="display:none; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="abrirCriarRevendedor()">👑 Criar revendedor</button>
+      <button class="btn" onclick="abrirMenu()" style="font-size:18px; padding:8px 14px;">☰</button>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
   </header>
+
+  <div class="overlay" id="overlay-menu">
+    <div class="modal" style="max-width:340px;">
+      <div class="modal-header"><h2>Menu</h2><button class="modal-close-x" onclick="fecharMenu()">✕</button></div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirAplicativos();">📲 Aplicativos</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirFinanceiro();">💰 Financeiro</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirPersonalizacao();">🎨 Personalização</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
+        <button class="btn" id="btn-criar-revendedor" style="display:none; text-align:left; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="fecharMenu(); abrirCriarRevendedor();">👑 Criar revendedor</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="fecharMenu()">Fechar</button>
+      </div>
+    </div>
+  </div>
 
   <main>
     <div class="stats">
@@ -220,6 +235,66 @@
     <div id="lista-servidores" style="margin-top:16px;"></div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharServidores()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-financeiro">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>💰 Financeiro</h2><button class="modal-close-x" onclick="fecharFinanceiro()">✕</button></div>
+    <div class="field">
+      <label>Mês</label>
+      <select id="fin-filtro-mes"><option value="todos">Todos os meses</option></select>
+    </div>
+    <div class="stats" style="grid-template-columns: 1fr 1fr; margin-bottom:18px;">
+      <div class="stat-card ok">
+        <div class="label">Total no período</div>
+        <div class="value mono" id="fin-total" style="font-size:22px;">R$ 0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Lançamentos</div>
+        <div class="value mono" id="fin-qtd" style="font-size:22px;">0</div>
+      </div>
+    </div>
+    <div id="lista-financeiro" style="max-height:300px; overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharFinanceiro()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-mensagens">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>✉️ Mensagens</h2><button class="modal-close-x" onclick="fecharMensagens()">✕</button></div>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Clique numa variável pra inserir no texto onde o cursor estiver: {nome} {data_vencimento} {valor_plano} {servidor} {dias_restantes} {link}</p>
+
+    <div class="field"><label>7 dias antes</label><textarea id="tpl-msg7dias" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>3 dias antes</label><textarea id="tpl-msg3dias" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>No dia do vencimento</label><textarea id="tpl-msgVencimento" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Vencido (cobrança)</label><textarea id="tpl-msgVencido" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Push manual (botão 🔔)</label><textarea id="tpl-msgManual" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Assunto do e-mail</label><input type="text" id="tpl-emailAssunto"></div>
+    <div class="field"><label>Corpo do e-mail</label><textarea id="tpl-emailCorpo" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharMensagens()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarMensagens()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-personalizacao">
+  <div class="modal">
+    <div class="modal-header"><h2>🎨 Personalização</h2><button class="modal-close-x" onclick="fecharPersonalizacao()">✕</button></div>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Isso muda como o cliente vê a página /meu-plano.html</p>
+    <div class="field"><label>Nome da marca</label><input type="text" id="pz-nome" placeholder="Fênix Play"></div>
+    <div class="field"><label>URL do logo (opcional)</label><input type="text" id="pz-logo" placeholder="https://exemplo.com/logo.png"></div>
+    <div class="field"><label>Cor principal</label><input type="color" id="pz-cor" value="#34D399" style="width:100%; height:44px; padding:4px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px;"></div>
+    <div class="field"><label>Texto do botão de notificação</label><input type="text" id="pz-texto-notif" placeholder="Ativar notificações"></div>
+    <div class="field"><label>Texto do botão de suporte</label><input type="text" id="pz-texto-suporte" placeholder="💬 Falar com o suporte"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharPersonalizacao()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPersonalizacao()">Salvar</button>
     </div>
   </div>
 </div>
@@ -1030,10 +1105,137 @@
         method: 'POST',
         body: JSON.stringify(novoCliente)
       });
+      if (!emTeste) {
+        await registrarFinanceiro({ nome, servidor }, planoValor, 'cadastro');
+      }
     }
 
     fecharModal();
     await carregarClientes();
+  }
+
+  // ---- Menu ----
+  function abrirMenu() {
+    document.getElementById('overlay-menu').classList.add('open');
+  }
+  function fecharMenu() {
+    document.getElementById('overlay-menu').classList.remove('open');
+  }
+
+  // ---- Financeiro ----
+  let financeiroRegistros = [];
+  function caminhoFinanceiro() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/financeiro`;
+  }
+  async function registrarFinanceiro(cliente, valor, tipo) {
+    await fetch(`${caminhoFinanceiro()}.json`, {
+      method: 'POST',
+      body: JSON.stringify({
+        clienteNome: cliente.nome,
+        servidor: cliente.servidor || '—',
+        valor: Number(valor) || 0,
+        tipo,
+        data: Date.now()
+      })
+    });
+  }
+  function chaveMes(timestamp) {
+    const d = new Date(timestamp);
+    return `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  }
+  async function abrirFinanceiro() {
+    const res = await fetch(`${caminhoFinanceiro()}.json`);
+    const data = await res.json() || {};
+    financeiroRegistros = Object.entries(data).map(([id, r]) => ({ id, ...r })).sort((a,b) => b.data - a.data);
+
+    const meses = [...new Set(financeiroRegistros.map(r => chaveMes(r.data)))];
+    document.getElementById('fin-filtro-mes').innerHTML = '<option value="todos">Todos os meses</option>' +
+      meses.map(m => `<option value="${m}">${m}</option>`).join('');
+
+    renderizarFinanceiro();
+    document.getElementById('overlay-financeiro').classList.add('open');
+  }
+  function fecharFinanceiro() {
+    document.getElementById('overlay-financeiro').classList.remove('open');
+  }
+  function renderizarFinanceiro() {
+    const mesFiltro = document.getElementById('fin-filtro-mes').value;
+    let registros = financeiroRegistros;
+    if (mesFiltro !== 'todos') registros = registros.filter(r => chaveMes(r.data) === mesFiltro);
+
+    const total = registros.reduce((s, r) => s + r.valor, 0);
+    document.getElementById('fin-total').textContent = `R$ ${total.toFixed(2)}`;
+    document.getElementById('fin-qtd').textContent = registros.length;
+
+    const container = document.getElementById('lista-financeiro');
+    container.innerHTML = registros.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum registro ainda.</div>'
+      : registros.map(r => `
+        <div class="lista-item">
+          <div>
+            <div>${r.clienteNome}</div>
+            <div style="font-size:12px; color:var(--text-muted);">${r.tipo === 'cadastro' ? 'Cadastro' : 'Renovação'} · ${r.servidor} · ${new Date(r.data).toLocaleDateString('pt-BR')}</div>
+          </div>
+          <span class="mono">R$ ${Number(r.valor).toFixed(2)}</span>
+        </div>
+      `).join('');
+  }
+
+  // ---- Mensagens ----
+  async function abrirMensagens() {
+    const res = await fetch(`${caminhoConfig()}/templates.json`);
+    const templates = await res.json() || {};
+    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','emailAssunto','emailCorpo'];
+    chaves.forEach(chave => {
+      document.getElementById(`tpl-${chave}`).value = templates[chave] || '';
+    });
+    document.getElementById('overlay-mensagens').classList.add('open');
+  }
+  function fecharMensagens() {
+    document.getElementById('overlay-mensagens').classList.remove('open');
+  }
+  async function salvarMensagens() {
+    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','emailAssunto','emailCorpo'];
+    const templates = {};
+    chaves.forEach(chave => {
+      templates[chave] = document.getElementById(`tpl-${chave}`).value;
+    });
+    await fetch(`${caminhoConfig()}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ templates })
+    });
+    fecharMensagens();
+    alert('Mensagens salvas!');
+  }
+
+  // ---- Personalização ----
+  async function abrirPersonalizacao() {
+    const res = await fetch(`${caminhoConfig()}/marca.json`);
+    const marca = await res.json() || {};
+    document.getElementById('pz-nome').value = marca.nome || '';
+    document.getElementById('pz-logo').value = marca.logoUrl || '';
+    document.getElementById('pz-cor').value = marca.corPrimaria || '#34D399';
+    document.getElementById('pz-texto-notif').value = marca.textoBotaoNotificacao || 'Ativar notificações';
+    document.getElementById('pz-texto-suporte').value = marca.textoBotaoSuporte || '💬 Falar com o suporte';
+    document.getElementById('overlay-personalizacao').classList.add('open');
+  }
+  function fecharPersonalizacao() {
+    document.getElementById('overlay-personalizacao').classList.remove('open');
+  }
+  async function salvarPersonalizacao() {
+    const marca = {
+      nome: document.getElementById('pz-nome').value.trim(),
+      logoUrl: document.getElementById('pz-logo').value.trim(),
+      corPrimaria: document.getElementById('pz-cor').value,
+      textoBotaoNotificacao: document.getElementById('pz-texto-notif').value.trim() || 'Ativar notificações',
+      textoBotaoSuporte: document.getElementById('pz-texto-suporte').value.trim() || '💬 Falar com o suporte'
+    };
+    await fetch(`${caminhoConfig()}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ marca })
+    });
+    fecharPersonalizacao();
+    alert('Personalização salva!');
   }
 
   // ---- Configurações ----
@@ -1124,6 +1326,7 @@
     });
 
     fecharRenovacao();
+    await registrarFinanceiro({ nome: cliente.nome, servidor: cliente.servidor }, cliente.planoValor, 'renovacao');
     await carregarClientes();
 
     const mensagem = `Olá ${cliente.nome}! Seu plano foi renovado com sucesso ✅\nNovo vencimento: ${new Date(novoVencimento).toLocaleDateString('pt-BR')}\nValor: R$ ${Number(cliente.planoValor||0).toFixed(2)}\nObrigado pela confiança!`;
@@ -1160,6 +1363,7 @@
       });
 
       fecharRenovacao();
+      await registrarFinanceiro({ nome: cliente.nome, servidor: cliente.servidor }, cliente.planoValor, 'renovacao');
       await carregarClientes();
 
       const mensagem = `Olá ${cliente.nome}! Seu plano foi renovado com sucesso ✅\nNovo vencimento: ${new Date(data.vencimento).toLocaleDateString('pt-BR')}\nValor: R$ ${Number(cliente.planoValor||0).toFixed(2)}\nObrigado pela confiança!`;
@@ -1195,6 +1399,8 @@
     await fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
     await carregarClientes();
   }
+
+  document.getElementById('fin-filtro-mes').addEventListener('change', renderizarFinanceiro);
 
   document.getElementById('renovar-data-manual').addEventListener('change', () => {
     document.querySelectorAll('.dia-chip').forEach(el => el.classList.remove('active'));
