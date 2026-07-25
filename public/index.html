@@ -195,11 +195,16 @@
 <div class="overlay" id="overlay-servidores">
   <div class="modal">
     <div class="modal-header"><h2>🖥️ Servidores</h2><button class="modal-close-x" onclick="fecharServidores()">✕</button></div>
+    <input type="hidden" id="editando-servidor-id">
     <div class="field">
       <label>Novo servidor</label>
+      <input type="text" id="novo-servidor-nome" placeholder="Nome do servidor">
+    </div>
+    <div class="field">
+      <label>Domínio do link M3U (opcional — auto-detecta o servidor ao colar o link)</label>
       <div style="display:flex; gap:8px;">
-        <input type="text" id="novo-servidor-nome" placeholder="Nome do servidor">
-        <button class="btn btn-primary" onclick="adicionarServidor()">Adicionar</button>
+        <input type="text" id="novo-servidor-dominio" placeholder="Ex: invictos.sbs" style="flex:1;">
+        <button class="btn btn-primary" id="btn-salvar-servidor" onclick="adicionarServidor()">Adicionar</button>
       </div>
     </div>
     <div id="lista-servidores" style="margin-top:16px;"></div>
@@ -238,6 +243,14 @@
     <div class="field">
       <label>Nome</label>
       <input type="text" id="f-nome" placeholder="Nome do cliente">
+    </div>
+    <div class="field">
+      <label>Link M3U (opcional — preenche usuário/senha/vencimento/servidor sozinho)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="f-m3u" placeholder="http://painel.com/get.php?username=...&password=..." style="flex:1;">
+        <button class="btn" type="button" onclick="buscarDadosM3U()" style="white-space:nowrap;">🔍 Buscar</button>
+      </div>
+      <div id="m3u-status" style="font-size:12px; margin-top:6px;"></div>
     </div>
     <div class="field">
       <label>WhatsApp (com DDI, só números)</label>
@@ -478,6 +491,10 @@
   }
 
   function abrirServidores() {
+    document.getElementById('editando-servidor-id').value = '';
+    document.getElementById('novo-servidor-nome').value = '';
+    document.getElementById('novo-servidor-dominio').value = '';
+    document.getElementById('btn-salvar-servidor').textContent = 'Adicionar';
     renderizarListaServidores();
     document.getElementById('overlay-servidores').classList.add('open');
   }
@@ -492,19 +509,44 @@
     }
     container.innerHTML = servidores.map(s => `
       <div class="lista-item">
-        <span>${s.nome}</span>
-        <button class="del-mini" onclick="excluirServidor('${s.id}')">remover</button>
+        <span>${s.nome} ${s.dominioM3U ? `<span class="mono" style="color:var(--text-muted); font-size:11px;">(${s.dominioM3U})</span>` : ''}</span>
+        <span style="display:flex; gap:10px;">
+          <button class="del-mini" style="color:var(--text-muted);" onclick="editarServidor('${s.id}')">editar</button>
+          <button class="del-mini" onclick="excluirServidor('${s.id}')">remover</button>
+        </span>
       </div>
     `).join('');
   }
+  function editarServidor(id) {
+    const s = servidores.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('editando-servidor-id').value = id;
+    document.getElementById('novo-servidor-nome').value = s.nome;
+    document.getElementById('novo-servidor-dominio').value = s.dominioM3U || '';
+    document.getElementById('btn-salvar-servidor').textContent = 'Salvar alteração';
+  }
   async function adicionarServidor() {
+    const idEditando = document.getElementById('editando-servidor-id').value;
     const nome = document.getElementById('novo-servidor-nome').value.trim();
+    const dominioM3U = document.getElementById('novo-servidor-dominio').value.trim();
     if (!nome) return;
-    await fetch(`${caminhoServidores()}.json`, {
-      method: 'POST',
-      body: JSON.stringify({ nome })
-    });
+
+    if (idEditando) {
+      await fetch(`${caminhoServidores()}/${idEditando}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nome, dominioM3U })
+      });
+    } else {
+      await fetch(`${caminhoServidores()}.json`, {
+        method: 'POST',
+        body: JSON.stringify({ nome, dominioM3U })
+      });
+    }
+
+    document.getElementById('editando-servidor-id').value = '';
     document.getElementById('novo-servidor-nome').value = '';
+    document.getElementById('novo-servidor-dominio').value = '';
+    document.getElementById('btn-salvar-servidor').textContent = 'Adicionar';
     await carregarServidores();
     renderizarListaServidores();
   }
@@ -573,10 +615,63 @@
     }).join('');
   }
 
+  async function buscarDadosM3U() {
+    const link = document.getElementById('f-m3u').value.trim();
+    const statusEl = document.getElementById('m3u-status');
+
+    if (!link) { statusEl.textContent = 'Cola o link M3U primeiro.'; statusEl.style.color = 'var(--danger)'; return; }
+
+    statusEl.textContent = 'Consultando o painel...';
+    statusEl.style.color = 'var(--text-muted)';
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/consultar-iptv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ link })
+      });
+      const data = await res.json();
+
+      if (data.erro) {
+        statusEl.textContent = '❌ ' + data.erro;
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+
+      document.getElementById('f-usuario').value = data.usuario || '';
+      document.getElementById('f-senha').value = data.senha || '';
+      if (data.vencimento) {
+        document.getElementById('f-vencimento').value = new Date(data.vencimento).toISOString().slice(0, 10);
+      }
+
+      let servidorDetectado = '';
+      if (data.baseUrl) {
+        const dominioLink = data.baseUrl.replace(/^https?:\/\//, '').split(':')[0];
+        const servidorEncontrado = servidores.find(s => s.dominioM3U && dominioLink.includes(s.dominioM3U));
+        if (servidorEncontrado) {
+          servidorDetectado = servidorEncontrado.nome;
+          document.getElementById('f-servidor').value = servidorDetectado;
+        }
+      }
+
+      statusEl.textContent = `✅ Dados encontrados! Status no painel: ${data.statusPainel || 'desconhecido'}${servidorDetectado ? ' · Servidor detectado: ' + servidorDetectado : ''}`;
+      statusEl.style.color = 'var(--ok)';
+    } catch (err) {
+      statusEl.textContent = '❌ Erro ao consultar. Tenta de novo.';
+      statusEl.style.color = 'var(--danger)';
+    }
+  }
+
   function abrirModal() {
     document.getElementById('modal-titulo').textContent = 'Novo cliente';
     document.getElementById('cliente-id').value = '';
     document.getElementById('f-nome').value = '';
+    document.getElementById('f-m3u').value = '';
+    document.getElementById('m3u-status').textContent = '';
     document.getElementById('f-whatsapp').value = '';
     document.getElementById('f-usuario').value = '';
     document.getElementById('f-senha').value = '';
@@ -597,6 +692,8 @@
     document.getElementById('modal-titulo').textContent = 'Editar cliente';
     document.getElementById('cliente-id').value = c.id;
     document.getElementById('f-nome').value = c.nome || '';
+    document.getElementById('f-m3u').value = c.m3uLink || '';
+    document.getElementById('m3u-status').textContent = '';
     document.getElementById('f-whatsapp').value = c.whatsapp || '';
     document.getElementById('f-usuario').value = c.usuario || '';
     document.getElementById('f-senha').value = c.senha || '';
@@ -610,6 +707,7 @@
   async function salvarCliente() {
     const id = document.getElementById('cliente-id').value;
     const nome = document.getElementById('f-nome').value.trim();
+    const m3uLink = document.getElementById('f-m3u').value.trim();
     const whatsapp = document.getElementById('f-whatsapp').value.replace(/\D/g,'');
     const usuario = document.getElementById('f-usuario').value.trim();
     const senha = document.getElementById('f-senha').value.trim();
@@ -627,11 +725,11 @@
     if (id) {
       await fetch(`${caminhoClientes()}/${id}.json`, {
         method: 'PATCH',
-        body: JSON.stringify({ nome, whatsapp, usuario, senha, servidor, planoValor, vencimento })
+        body: JSON.stringify({ nome, m3uLink, whatsapp, usuario, senha, servidor, planoValor, vencimento })
       });
     } else {
       const novoCliente = {
-        nome, whatsapp, usuario, senha, servidor, planoValor, vencimento,
+        nome, m3uLink, whatsapp, usuario, senha, servidor, planoValor, vencimento,
         criadoEm: Date.now()
       };
       await fetch(`${caminhoClientes()}.json`, {
