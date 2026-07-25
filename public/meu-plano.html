@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Meu Plano</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <style>
   :root {
     --bg: #0B0F14; --surface: #131A22; --border: #232C37;
@@ -28,22 +30,28 @@
   .linha:last-of-type { border-bottom: none; }
   .linha .label { color: var(--text-muted); }
   .mono { font-family: 'JetBrains Mono', monospace; }
-  .status-pill {
-    display: inline-block; padding: 4px 12px; border-radius: 100px;
-    font-size: 13px; font-weight: 500;
-  }
+  .status-pill { display: inline-block; padding: 4px 12px; border-radius: 100px; font-size: 13px; font-weight: 500; }
   .status-pill.ok { background: rgba(52,211,153,0.12); color: var(--ok); }
   .status-pill.warn { background: rgba(251,191,36,0.12); color: var(--warn); }
   .status-pill.danger { background: rgba(248,113,113,0.12); color: var(--danger); }
   .status-pill.teste { background: rgba(96,165,250,0.15); color: #60A5FA; }
   .btn-suporte {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; margin-top: 20px; padding: 14px;
+    width: 100%; margin-top: 12px; padding: 14px;
     border-radius: 10px; border: none;
     background: linear-gradient(135deg, #25D366, #128C7E);
-    color: #fff; font-weight: 600; font-size: 14px;
-    text-decoration: none;
+    color: #fff; font-weight: 600; font-size: 14px; text-decoration: none;
     box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+  }
+  button#btn-notif {
+    width: 100%; margin-top: 20px; padding: 13px; border-radius: 10px;
+    border: none; background: var(--ok); color: #06231A;
+    font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  button#btn-notif:disabled { background: var(--border); color: var(--text-muted); cursor: default; }
+  input[type=email] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; box-sizing: border-box;
   }
   .loading { text-align: center; color: var(--text-muted); }
 </style>
@@ -54,11 +62,42 @@
 </div>
 
 <script>
-  const FIREBASE_DB = "https://gestor-revenda-a0e61-default-rtdb.firebaseio.com";
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_hPyEcvWiJ_XqwwbeDvFkUYWL2Rdk-5Y",
+    authDomain: "gestor-revenda-a0e61.firebaseapp.com",
+    databaseURL: "https://gestor-revenda-a0e61-default-rtdb.firebaseio.com",
+    projectId: "gestor-revenda-a0e61",
+    storageBucket: "gestor-revenda-a0e61.firebasestorage.app",
+    messagingSenderId: "1026444053849",
+    appId: "1:1026444053849:web:4590233bd375d70a139048"
+  };
+  firebase.initializeApp(firebaseConfig);
 
+  // TODO: cole aqui a VAPID key gerada em
+  // Configurações do projeto > Cloud Messaging > Web Push certificates
+  const VAPID_KEY = "BObwpR56HyvA-01i2B5xy9-fXh6aCovO9gPTGe1_wMSbUU247JQKbP3pH13miH_IKXf1UhfHSe1eiFqJXNjOGwE";
+
+  const FIREBASE_DB = firebaseConfig.databaseURL;
   const params = new URLSearchParams(window.location.search);
   const revId = params.get('rev');
   const clienteId = params.get('id');
+  let escutaForegroundAtiva = false;
+
+  function configurarEscutaForeground() {
+    if (escutaForegroundAtiva) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    try {
+      const messagingForeground = firebase.messaging();
+      messagingForeground.onMessage((payload) => {
+        const titulo = payload.data?.title || 'Aviso sobre seu plano';
+        const corpo = payload.data?.body || '';
+        const notif = new Notification(titulo, { body: corpo });
+        notif.onclick = () => { if (payload.data?.link) window.open(payload.data.link, '_blank'); };
+      });
+      escutaForegroundAtiva = true;
+    } catch (err) {}
+  }
+  configurarEscutaForeground();
 
   function diasAte(timestamp) {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
@@ -86,7 +125,6 @@
     }
 
     let statusClasse, statusTexto, vencimentoTexto;
-
     if (c.emTeste) {
       const horasRestantes = (c.vencimento - Date.now()) / (1000*60*60);
       statusClasse = horasRestantes <= 0 ? 'danger' : 'teste';
@@ -101,6 +139,29 @@
       vencimentoTexto = new Date(c.vencimento).toLocaleDateString('pt-BR');
     }
 
+    const notifAtiva = c.notificacaoAtiva;
+    const temDadosAcesso = c.usuario || c.senha;
+
+    let dadosAcessoHtml = '';
+    let emailCapturaHtml = '';
+
+    if (notifAtiva && temDadosAcesso) {
+      dadosAcessoHtml = `
+        <div style="background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.4); border-radius:10px; padding:10px 12px; margin-top:16px;">
+          <div style="font-size:12px; color:var(--ok); margin-bottom:6px;">✅ Dados de acesso:</div>
+          ${c.usuario ? `<div style="display:flex; justify-content:space-between; font-size:13px; padding:4px 0;"><span style="color:var(--text-muted);">Usuário</span><span class="mono" style="color:var(--warn); font-weight:600;">${c.usuario}</span></div>` : ''}
+          ${c.senha ? `<div style="display:flex; justify-content:space-between; font-size:13px; padding:4px 0;"><span style="color:var(--text-muted);">Senha</span><span class="mono" style="color:var(--warn); font-weight:600;">${c.senha}</span></div>` : ''}
+        </div>
+      `;
+    } else if (!notifAtiva && temDadosAcesso) {
+      emailCapturaHtml = `
+        <div style="margin-top:16px;">
+          <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px;">Seu e-mail (opcional)</label>
+          <input type="email" id="input-email-cliente" value="${c.email || ''}" placeholder="seuemail@exemplo.com">
+        </div>
+      `;
+    }
+
     const botaoSuporteHtml = config.whatsappSuporte
       ? `<a class="btn-suporte" href="https://wa.me/${config.whatsappSuporte}?text=${encodeURIComponent('Olá! Sou o cliente ' + c.nome + ' e preciso de suporte.')}" target="_blank">💬 Falar com o suporte</a>`
       : '';
@@ -112,8 +173,44 @@
       <div class="linha"><span class="label">Valor</span><span class="mono">R$ ${Number(c.planoValor||0).toFixed(2)}</span></div>
       <div class="linha"><span class="label">${c.emTeste ? 'Teste termina em' : 'Vencimento'}</span><span class="mono">${vencimentoTexto}</span></div>
       <div class="linha"><span class="label">Situação</span><span class="status-pill ${statusClasse}">${statusTexto}</span></div>
+      ${emailCapturaHtml}
+      ${dadosAcessoHtml}
+      <button id="btn-notif" ${notifAtiva ? 'disabled' : ''}>${notifAtiva ? 'Notificações ativadas ✓' : 'Ativar notificações'}</button>
       ${botaoSuporteHtml}
     `;
+
+    const botaoNotif = document.getElementById('btn-notif');
+    if (botaoNotif && !notifAtiva) botaoNotif.onclick = ativarNotificacoes;
+  }
+
+  async function ativarNotificacoes() {
+    try {
+      const permissao = await Notification.requestPermission();
+      if (permissao !== 'granted') {
+        alert('Você precisa permitir as notificações pra receber os avisos de vencimento.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const messaging = firebase.messaging();
+      const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+
+      const dadosParaSalvar = { fcmToken: token, notificacaoAtiva: true };
+      const inputEmail = document.getElementById('input-email-cliente');
+      const emailDigitado = inputEmail ? inputEmail.value.trim() : '';
+      if (emailDigitado) dadosParaSalvar.email = emailDigitado;
+
+      await fetch(`${FIREBASE_DB}/revendedores/${revId}/clientes/${clienteId}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify(dadosParaSalvar)
+      });
+
+      configurarEscutaForeground();
+      await carregar();
+    } catch (err) {
+      console.error(err);
+      alert('Não deu pra ativar as notificações agora. Tenta de novo em instantes.');
+    }
   }
 
   carregar();
