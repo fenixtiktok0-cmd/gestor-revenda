@@ -865,6 +865,7 @@
             <div class="actions">
               <a class="icon-btn" href="https://wa.me/${c.whatsapp}" target="_blank" title="WhatsApp">💬</a>
               <button class="icon-btn" onclick="abrirRenovacao('${c.id}')" title="Renovar" style="color:var(--ok);">🔄</button>
+              <a class="icon-btn" href="https://wa.me/${c.whatsapp}?text=${encodeURIComponent('Olá ' + c.nome + '! Acompanhe seu plano por aqui: ' + window.location.origin + '/meu-plano.html?rev=' + uidRevendedor + '&id=' + c.id)}" target="_blank" title="Enviar link do painel">🔗</a>
               <button class="icon-btn" onclick="editarCliente('${c.id}')" title="Editar">✏️</button>
               <button class="icon-btn del" onclick="excluirCliente('${c.id}')" title="Excluir">🗑️</button>
             </div>
