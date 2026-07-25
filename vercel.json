@@ -3,10 +3,17 @@
     {
       "path": "/api/cron-verificar-vencimentos",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron-testes",
+      "schedule": "0 * * * *"
     }
   ],
   "functions": {
     "api/cron-verificar-vencimentos.js": {
+      "maxDuration": 60
+    },
+    "api/cron-testes.js": {
       "maxDuration": 60
     }
   }
