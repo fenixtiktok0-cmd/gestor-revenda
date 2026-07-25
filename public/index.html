@@ -94,6 +94,7 @@
     <h1><span class="signal-dot"></span> Painel de Revenda</h1>
     <div style="display:flex; align-items:center; gap:14px;">
       <span class="header-info" id="email-usuario"></span>
+      <button class="btn" id="btn-criar-revendedor" style="display:none; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="abrirCriarRevendedor()">👑 Criar revendedor</button>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
   </header>
@@ -122,6 +123,14 @@
       </div>
     </div>
 
+    <div class="card" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;">
+      <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">🔗 Seu link de indicação — quem se cadastrar por ele vira seu indicado</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="link-indicacao" readonly style="flex:1; min-width:200px; font-family:'JetBrains Mono',monospace; font-size:12px;">
+        <button class="btn" onclick="copiarLinkIndicacao()">Copiar</button>
+      </div>
+    </div>
+
     <button class="btn btn-primary" style="width:100%; margin-bottom:16px; padding:13px;" onclick="abrirModal()">+ Novo cliente</button>
 
     <div class="toolbar">
@@ -143,7 +152,61 @@
       <tbody id="tabela-clientes"></tbody>
     </table>
     <div class="empty-state" id="empty-state" style="display:none;">Nenhum cliente cadastrado ainda.</div>
+
+    <h2 style="margin-top:32px; font-size:16px;">👥 Meus indicados</h2>
+    <table style="margin-top:10px;">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Data</th>
+          <th>Comissão</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-indicados"></tbody>
+    </table>
+    <div class="empty-state" id="empty-indicados" style="display:none;">Você ainda não indicou ninguém.</div>
+
+    <div id="secao-comissoes-master" style="display:none; margin-top:32px;">
+      <h2 style="font-size:16px; color:#FBBF24;">💰 Comissões — visão geral (admin)</h2>
+      <table style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th>Quem indicou</th>
+            <th>Quem foi indicado</th>
+            <th>Data</th>
+            <th>Valor</th>
+            <th>Status</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-comissoes-master"></tbody>
+      </table>
+      <div class="empty-state" id="empty-comissoes-master" style="display:none;">Nenhuma comissão registrada ainda.</div>
+    </div>
   </main>
+</div>
+
+<div class="overlay" id="overlay-criar-revendedor">
+  <div class="modal">
+    <div class="modal-header"><h2>👑 Criar revendedor</h2><button class="modal-close-x" onclick="fecharCriarRevendedor()">✕</button></div>
+    <div class="field">
+      <label>Nome</label>
+      <input type="text" id="rev-nome" placeholder="Nome do revendedor">
+    </div>
+    <div class="field">
+      <label>E-mail</label>
+      <input type="email" id="rev-email" placeholder="email@exemplo.com">
+    </div>
+    <div class="field">
+      <label>Senha (mínimo 6 caracteres)</label>
+      <input type="text" id="rev-senha" placeholder="senha123">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharCriarRevendedor()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarCriarRevendedor()">Criar</button>
+    </div>
+  </div>
 </div>
 
 <div class="overlay" id="overlay">
@@ -199,6 +262,7 @@
   const auth = firebase.auth();
   const FIREBASE_DB = firebaseConfig.databaseURL;
 
+  const MASTER_UID = 'G8SAyrR7fFcslRmSIBUosRwA6QF2';
   let uidRevendedor = null;
   let clientes = [];
 
@@ -211,8 +275,133 @@
     document.getElementById('email-usuario').textContent = user.email;
     document.getElementById('tela-carregando').style.display = 'none';
     document.getElementById('tela-painel').style.display = 'block';
+
+    document.getElementById('link-indicacao').value = `${window.location.origin}/cadastro.html?ref=${uidRevendedor}`;
+
     carregarClientes();
+    carregarIndicados();
+
+    if (uidRevendedor === MASTER_UID) {
+      document.getElementById('btn-criar-revendedor').style.display = 'inline-block';
+      document.getElementById('secao-comissoes-master').style.display = 'block';
+      carregarComissoesMaster();
+    }
   });
+
+  function copiarLinkIndicacao() {
+    const input = document.getElementById('link-indicacao');
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => {
+      alert('Link copiado!');
+    }).catch(() => {
+      document.execCommand('copy');
+      alert('Link copiado!');
+    });
+  }
+
+  async function carregarIndicados() {
+    const res = await fetch(`${FIREBASE_DB}/comissoes.json`);
+    const data = await res.json() || {};
+    const todas = Object.entries(data).map(([id, c]) => ({ id, ...c }));
+    const minhas = todas.filter(c => c.revendedorId === uidRevendedor).sort((a,b) => b.data - a.data);
+
+    const tbody = document.getElementById('tabela-indicados');
+    const empty = document.getElementById('empty-indicados');
+
+    if (minhas.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = minhas.map(c => `
+      <tr>
+        <td data-label="Nome">${c.indicadoNome}</td>
+        <td data-label="Data" class="mono">${new Date(c.data).toLocaleDateString('pt-BR')}</td>
+        <td data-label="Comissão" class="mono">R$ ${Number(c.valor).toFixed(2)}</td>
+        <td data-label="Status"><span class="badge ${c.status === 'pago' ? 'ativo' : 'inativo'}">${c.status}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  async function carregarComissoesMaster() {
+    const res = await fetch(`${FIREBASE_DB}/comissoes.json`);
+    const data = await res.json() || {};
+    const todas = Object.entries(data).map(([id, c]) => ({ id, ...c })).sort((a,b) => b.data - a.data);
+
+    const tbody = document.getElementById('tabela-comissoes-master');
+    const empty = document.getElementById('empty-comissoes-master');
+
+    if (todas.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = todas.map(c => `
+      <tr>
+        <td data-label="Quem indicou">${c.revendedorNome || c.revendedorId}</td>
+        <td data-label="Quem foi indicado">${c.indicadoNome}</td>
+        <td data-label="Data" class="mono">${new Date(c.data).toLocaleDateString('pt-BR')}</td>
+        <td data-label="Valor" class="mono">R$ ${Number(c.valor).toFixed(2)}</td>
+        <td data-label="Status"><span class="badge ${c.status === 'pago' ? 'ativo' : 'inativo'}">${c.status}</span></td>
+        <td data-label="Ação">
+          ${c.status === 'pendente' ? `<button class="btn" style="padding:6px 12px; font-size:12px;" onclick="marcarComoPago('${c.id}')">Marcar pago</button>` : '—'}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function marcarComoPago(id) {
+    if (!confirm('Confirma que essa comissão já foi paga?')) return;
+    await fetch(`${FIREBASE_DB}/comissoes/${id}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'pago', dataPagamento: Date.now() })
+    });
+    await carregarComissoesMaster();
+  }
+
+  function abrirCriarRevendedor() {
+    document.getElementById('rev-nome').value = '';
+    document.getElementById('rev-email').value = '';
+    document.getElementById('rev-senha').value = '';
+    document.getElementById('overlay-criar-revendedor').classList.add('open');
+  }
+  function fecharCriarRevendedor() {
+    document.getElementById('overlay-criar-revendedor').classList.remove('open');
+  }
+  async function confirmarCriarRevendedor() {
+    const nome = document.getElementById('rev-nome').value.trim();
+    const email = document.getElementById('rev-email').value.trim();
+    const senha = document.getElementById('rev-senha').value;
+
+    if (!nome || !email || !senha) { alert('Preenche tudo.'); return; }
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/criar-revendedor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ nome, email, senha })
+      });
+      const data = await res.json();
+
+      if (data.erro) {
+        alert('Erro: ' + data.erro);
+        return;
+      }
+
+      fecharCriarRevendedor();
+      alert(`✅ Revendedor "${nome}" criado com sucesso!`);
+    } catch (err) {
+      alert('Erro ao criar revendedor.');
+    }
+  }
 
   function sair() {
     auth.signOut().then(() => { window.location.href = '/login.html'; });
