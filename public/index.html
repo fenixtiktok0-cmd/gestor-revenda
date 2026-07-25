@@ -115,11 +115,15 @@
     <div class="modal" style="max-width:340px;">
       <div class="modal-header"><h2>Menu</h2><button class="modal-close-x" onclick="fecharMenu()">✕</button></div>
       <div style="display:flex; flex-direction:column; gap:8px;">
-        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirTrocarDominio();">🔗 Trocar domínio M3U em massa</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirImportar();">📥 Importar clientes</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirPersonalizacao();">🎨 Personalização</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirAplicativos();">📲 Aplicativos</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirRemarketing();">📣 Remarketing</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirNotificacoes();">🔔 Notificações</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirFinanceiro();">💰 Financeiro</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
-        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirPersonalizacao();">🎨 Personalização</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
         <button class="btn" id="btn-criar-revendedor" style="display:none; text-align:left; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="fecharMenu(); abrirCriarRevendedor();">👑 Criar revendedor</button>
       </div>
@@ -165,11 +169,28 @@
 
     <div class="toolbar">
       <input type="text" id="busca" placeholder="Buscar por nome ou telefone..." oninput="renderizar()">
+      <select id="filtro-dias-vencido" style="background:var(--surface); border:1px solid var(--border); border-radius:100px; color:var(--text); font-size:13px; padding:7px 10px;">
+        <option value="30">+30 dias</option>
+        <option value="60">+60 dias</option>
+        <option value="90">+90 dias</option>
+        <option value="180" selected>+180 dias</option>
+        <option value="360">+360 dias</option>
+      </select>
+      <button class="btn" onclick="selecionarVencidosPorDias()">Selecionar vencidos</button>
+    </div>
+
+    <div id="barra-selecao" style="display:none; align-items:center; justify-content:space-between; background:var(--danger-bg); border:1px solid var(--danger); border-radius:10px; padding:12px 16px; margin-bottom:14px;">
+      <span id="texto-selecao" style="font-size:14px; font-weight:600; color:var(--danger);">0 selecionado(s)</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" onclick="limparSelecao()">Cancelar</button>
+        <button class="btn" style="background:var(--danger); border-color:var(--danger); color:#fff;" onclick="excluirSelecionados()">🗑️ Excluir selecionados</button>
+      </div>
     </div>
 
     <table>
       <thead>
         <tr>
+          <th><input type="checkbox" id="chk-selecionar-todos" onchange="toggleSelecionarTodos()"></th>
           <th>Cliente</th>
           <th>Usuário</th>
           <th>Servidor</th>
@@ -239,6 +260,96 @@
   </div>
 </div>
 
+<div class="overlay" id="overlay-notificacoes">
+  <div class="modal">
+    <div class="modal-header"><h2>🔔 Notificações</h2><button class="modal-close-x" onclick="fecharNotificacoes()">✕</button></div>
+    <div class="stats" style="grid-template-columns: 1fr 1fr; margin-bottom:18px;">
+      <div class="stat-card ok"><div class="label">Ativaram</div><div class="value mono" id="notif-ativos">0</div></div>
+      <div class="stat-card danger"><div class="label">Não ativaram</div><div class="value mono" id="notif-inativos">0</div></div>
+    </div>
+    <div id="lista-notificacoes" style="max-height:300px; overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharNotificacoes()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-trocar-dominio">
+  <div class="modal">
+    <div class="modal-header"><h2>🔗 Trocar domínio M3U em massa</h2><button class="modal-close-x" onclick="fecharTrocarDominio()">✕</button></div>
+    <div class="field"><label>Domínio atual</label><input type="text" id="td-dominio-antigo" placeholder="invictos.sbs"></div>
+    <div class="field"><label>Domínio novo</label><input type="text" id="td-dominio-novo" placeholder="invictos2.sbs"></div>
+    <button class="btn" style="width:100%;" onclick="analisarTrocaDominio()">Analisar</button>
+    <div id="td-resumo" style="margin-top:14px; font-size:13px; color:var(--text-muted);"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharTrocarDominio()">Fechar</button>
+      <button class="btn btn-primary" id="btn-aplicar-troca-dominio" style="display:none;" onclick="aplicarTrocaDominio()">Aplicar troca</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-ativar-oficial">
+  <div class="modal">
+    <div class="modal-header"><h2>Ativar como cliente oficial</h2><button class="modal-close-x" onclick="fecharAtivarOficial()">✕</button></div>
+    <input type="hidden" id="oficial-cliente-id">
+    <div class="field"><label>Valor do plano (R$)</label><input type="text" id="oficial-valor" placeholder="45.00"></div>
+    <div class="field">
+      <label>Vencimento</label>
+      <div style="display:flex; gap:8px;">
+        <input type="date" id="oficial-vencimento" style="flex:1;">
+        <button class="btn" type="button" id="btn-buscar-vencimento-oficial" style="display:none;" onclick="buscarVencimentoOficial()">📡 Buscar</button>
+      </div>
+      <div id="oficial-vencimento-status" style="font-size:12px; margin-top:6px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharAtivarOficial()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAtivarOficial()">Ativar como oficial</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-importar">
+  <div class="modal wide" style="max-width:560px;">
+    <div class="modal-header"><h2>📥 Importar clientes (CSV)</h2><button class="modal-close-x" onclick="fecharImportar()">✕</button></div>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Colunas esperadas: Nome,WhatsApp,Usuario,Senha,Servidor,Valor,Vencimento(DD/MM/AAAA)</p>
+    <div class="field"><label>Arquivo CSV</label><input type="file" id="importar-arquivo" accept=".csv" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text);"></div>
+    <button class="btn" style="width:100%;" onclick="prepararImportacao()">Analisar arquivo</button>
+    <div id="importar-resumo" style="margin-top:16px;"></div>
+    <div id="importar-progresso" style="margin-top:12px; font-size:13px; color:var(--text-muted);"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharImportar()">Fechar</button>
+      <button class="btn btn-primary" id="btn-confirmar-importacao" style="display:none;" onclick="confirmarImportacao()">Confirmar importação</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-remarketing">
+  <div class="modal wide" style="max-width:560px;">
+    <div class="modal-header"><h2>📣 Remarketing</h2><button class="modal-close-x" onclick="fecharRemarketing()">✕</button></div>
+    <div class="field">
+      <label>Filtrar por status</label>
+      <select id="remkt-status">
+        <option value="todos">Todos os clientes</option>
+        <option value="ativo">Ativos</option>
+        <option value="3dias">Vencendo em 3 dias</option>
+        <option value="hoje">Vencendo hoje</option>
+        <option value="vencido">Vencidos</option>
+      </select>
+    </div>
+    <div class="field"><div id="remkt-contagem" style="font-size:13px; color:var(--ok); font-weight:600;">0 cliente(s) selecionado(s)</div></div>
+    <div class="field"><label>Assunto (só e-mail)</label><input type="text" id="remkt-assunto" placeholder="Oferta especial pra você"></div>
+    <div class="field">
+      <label>Mensagem</label>
+      <textarea id="remkt-mensagem" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea>
+    </div>
+    <div class="modal-actions" style="flex-wrap:wrap;">
+      <button class="btn" onclick="fecharRemarketing()">Fechar</button>
+      <button class="btn" onclick="verLinksWhatsappMassa()">💬 Links WhatsApp</button>
+      <button class="btn" onclick="enviarPushMassa()">🔔 Push em massa</button>
+      <button class="btn btn-primary" onclick="enviarEmailMassa()">✉️ E-mail em massa</button>
+    </div>
+    <div id="remkt-links-whats" style="margin-top:14px; max-height:200px; overflow-y:auto;"></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay-financeiro">
   <div class="modal" style="max-width:560px;">
     <div class="modal-header"><h2>💰 Financeiro</h2><button class="modal-close-x" onclick="fecharFinanceiro()">✕</button></div>
@@ -267,6 +378,9 @@
   <div class="modal" style="max-width:560px;">
     <div class="modal-header"><h2>✉️ Mensagens</h2><button class="modal-close-x" onclick="fecharMensagens()">✕</button></div>
     <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Clique numa variável pra inserir no texto onde o cursor estiver: {nome} {data_vencimento} {valor_plano} {servidor} {dias_restantes} {link}</p>
+    <div style="background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.35); border-radius:8px; padding:10px 12px; font-size:12px; color:#60A5FA; margin-bottom:16px;">
+      ℹ️ Essas são as mensagens <b>padrão</b> — já funcionam sozinhas. Edite à vontade se quiser personalizar.
+    </div>
 
     <div class="field"><label>7 dias antes</label><textarea id="tpl-msg7dias" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
     <div class="field"><label>3 dias antes</label><textarea id="tpl-msg3dias" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
@@ -497,6 +611,51 @@
   const MASTER_UID = 'G8SAyrR7fFcslRmSIBUosRwA6QF2';
   let uidRevendedor = null;
   let clientes = [];
+  let selecionados = new Set();
+
+  function toggleSelecao(id) {
+    if (selecionados.has(id)) selecionados.delete(id);
+    else selecionados.add(id);
+    atualizarBarraSelecao();
+  }
+  function toggleSelecionarTodos() {
+    const marcar = document.getElementById('chk-selecionar-todos').checked;
+    const idsVisiveis = Array.from(document.querySelectorAll('.chk-cliente')).map(el => el.value);
+    if (marcar) idsVisiveis.forEach(id => selecionados.add(id));
+    else idsVisiveis.forEach(id => selecionados.delete(id));
+    renderizar();
+  }
+  function limparSelecao() {
+    selecionados.clear();
+    document.getElementById('chk-selecionar-todos').checked = false;
+    renderizar();
+  }
+  function atualizarBarraSelecao() {
+    const barra = document.getElementById('barra-selecao');
+    if (selecionados.size > 0) {
+      barra.style.display = 'flex';
+      document.getElementById('texto-selecao').textContent = `${selecionados.size} selecionado(s)`;
+    } else {
+      barra.style.display = 'none';
+    }
+  }
+  async function excluirSelecionados() {
+    const ids = Array.from(selecionados);
+    if (ids.length === 0) return;
+    if (!confirm(`Excluir ${ids.length} cliente(s)? Isso não pode ser desfeito.`)) return;
+    await Promise.all(ids.map(id => fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' })));
+    selecionados.clear();
+    document.getElementById('chk-selecionar-todos').checked = false;
+    await carregarClientes();
+  }
+  function selecionarVencidosPorDias() {
+    const dias = parseInt(document.getElementById('filtro-dias-vencido').value, 10);
+    const alvo = clientes.filter(c => !c.emTeste && diasAte(c.vencimento) < -dias);
+    if (alvo.length === 0) { alert(`Nenhum cliente vencido há mais de ${dias} dias.`); return; }
+    alvo.forEach(c => selecionados.add(c.id));
+    renderizar();
+    alert(`${alvo.length} cliente(s) selecionado(s). Revise e clica em "Excluir selecionados".`);
+  }
 
   auth.onAuthStateChanged((user) => {
     if (!user) {
@@ -908,6 +1067,7 @@
     if (lista.length === 0) {
       tbody.innerHTML = '';
       emptyState.style.display = 'block';
+      atualizarBarraSelecao();
       return;
     }
     emptyState.style.display = 'none';
@@ -930,6 +1090,7 @@
 
       return `
         <tr>
+          <td data-label=""><input type="checkbox" class="chk-cliente" value="${c.id}" ${selecionados.has(c.id) ? 'checked' : ''} onchange="toggleSelecao('${c.id}')"></td>
           <td data-label="Cliente"><b>${c.nome}</b></td>
           <td data-label="Usuário" class="mono">${c.usuario || '—'}</td>
           <td data-label="Servidor">${c.servidor || '—'}</td>
@@ -939,6 +1100,7 @@
           <td data-label="Ações">
             <div class="actions">
               <a class="icon-btn" href="https://wa.me/${c.whatsapp}" target="_blank" title="WhatsApp">💬</a>
+              ${c.emTeste ? `<button class="icon-btn" style="color:#60A5FA; border-color:#60A5FA;" onclick="abrirAtivarOficial('${c.id}')" title="Ativar como oficial">✅</button>` : ''}
               <button class="icon-btn" onclick="abrirRenovacao('${c.id}')" title="Renovar" style="color:var(--ok);">🔄</button>
               <button class="icon-btn" onclick="enviarPushManual('${c.id}')" title="Enviar push">🔔</button>
               <a class="icon-btn" href="https://wa.me/${c.whatsapp}?text=${encodeURIComponent('Olá ' + c.nome + '! Acompanhe seu plano por aqui: ' + window.location.origin + '/meu-plano.html?rev=' + uidRevendedor + '&id=' + c.id)}" target="_blank" title="Enviar link do painel">🔗</a>
@@ -949,6 +1111,8 @@
         </tr>
       `;
     }).join('');
+
+    atualizarBarraSelecao();
   }
 
   async function buscarDadosM3U() {
@@ -1122,6 +1286,329 @@
     document.getElementById('overlay-menu').classList.remove('open');
   }
 
+  // ---- Notificações ----
+  function abrirNotificacoes() {
+    const ativos = clientes.filter(c => c.notificacaoAtiva);
+    const inativos = clientes.filter(c => !c.notificacaoAtiva);
+    document.getElementById('notif-ativos').textContent = ativos.length;
+    document.getElementById('notif-inativos').textContent = inativos.length;
+    const container = document.getElementById('lista-notificacoes');
+    container.innerHTML = clientes.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum cliente cadastrado.</div>'
+      : clientes.map(c => `
+        <div class="lista-item">
+          <span>${c.nome}</span>
+          <span class="badge ${c.notificacaoAtiva ? 'ativo' : 'inativo'}">${c.notificacaoAtiva ? 'ativada' : 'não ativada'}</span>
+        </div>
+      `).join('');
+    document.getElementById('overlay-notificacoes').classList.add('open');
+  }
+  function fecharNotificacoes() {
+    document.getElementById('overlay-notificacoes').classList.remove('open');
+  }
+
+  // ---- Trocar domínio M3U em massa ----
+  let clientesParaTrocarDominio = [];
+  function abrirTrocarDominio() {
+    document.getElementById('td-dominio-antigo').value = '';
+    document.getElementById('td-dominio-novo').value = '';
+    document.getElementById('td-resumo').innerHTML = '';
+    document.getElementById('btn-aplicar-troca-dominio').style.display = 'none';
+    clientesParaTrocarDominio = [];
+    document.getElementById('overlay-trocar-dominio').classList.add('open');
+  }
+  function fecharTrocarDominio() {
+    document.getElementById('overlay-trocar-dominio').classList.remove('open');
+  }
+  function analisarTrocaDominio() {
+    const antigo = document.getElementById('td-dominio-antigo').value.trim();
+    const novo = document.getElementById('td-dominio-novo').value.trim();
+    const resumo = document.getElementById('td-resumo');
+    if (!antigo || !novo) { resumo.textContent = 'Preenche os dois campos.'; return; }
+    clientesParaTrocarDominio = clientes.filter(c => c.m3uLink && c.m3uLink.includes(antigo));
+    if (clientesParaTrocarDominio.length === 0) {
+      resumo.textContent = `Nenhum cliente encontrado com "${antigo}" no link M3U.`;
+      document.getElementById('btn-aplicar-troca-dominio').style.display = 'none';
+      return;
+    }
+    resumo.innerHTML = `<div style="color:var(--ok); font-weight:600;">${clientesParaTrocarDominio.length} cliente(s) encontrado(s)</div>`;
+    document.getElementById('btn-aplicar-troca-dominio').style.display = 'inline-block';
+  }
+  async function aplicarTrocaDominio() {
+    const antigo = document.getElementById('td-dominio-antigo').value.trim();
+    const novo = document.getElementById('td-dominio-novo').value.trim();
+    if (!confirm(`Atualizar ${clientesParaTrocarDominio.length} cliente(s)?`)) return;
+    const resumo = document.getElementById('td-resumo');
+    await Promise.all(clientesParaTrocarDominio.map(c => {
+      const novoLink = c.m3uLink.replaceAll(antigo, novo);
+      return fetch(`${caminhoClientes()}/${c.id}.json`, { method: 'PATCH', body: JSON.stringify({ m3uLink: novoLink }) });
+    }));
+    const servidoresParaAtualizar = servidores.filter(s => s.dominioM3U && s.dominioM3U.includes(antigo));
+    if (servidoresParaAtualizar.length > 0) {
+      await Promise.all(servidoresParaAtualizar.map(s =>
+        fetch(`${caminhoServidores()}/${s.id}.json`, { method: 'PATCH', body: JSON.stringify({ dominioM3U: s.dominioM3U.replaceAll(antigo, novo) }) })
+      ));
+      await carregarServidores();
+    }
+    resumo.innerHTML = `✅ ${clientesParaTrocarDominio.length} cliente(s) atualizado(s)!`;
+    document.getElementById('btn-aplicar-troca-dominio').style.display = 'none';
+    await carregarClientes();
+  }
+
+  // ---- Importar CSV ----
+  let importarDadosValidos = [];
+  function abrirImportar() {
+    document.getElementById('importar-arquivo').value = '';
+    document.getElementById('importar-resumo').innerHTML = '';
+    document.getElementById('importar-progresso').innerHTML = '';
+    document.getElementById('btn-confirmar-importacao').style.display = 'none';
+    importarDadosValidos = [];
+    document.getElementById('overlay-importar').classList.add('open');
+  }
+  function fecharImportar() {
+    document.getElementById('overlay-importar').classList.remove('open');
+  }
+  function parseCSV(texto) {
+    const linhas = [];
+    let linhaAtual = [], campoAtual = '', dentroAspas = false;
+    for (let i = 0; i < texto.length; i++) {
+      const char = texto[i], proximo = texto[i+1];
+      if (dentroAspas) {
+        if (char === '"' && proximo === '"') { campoAtual += '"'; i++; }
+        else if (char === '"') { dentroAspas = false; }
+        else campoAtual += char;
+      } else {
+        if (char === '"') dentroAspas = true;
+        else if (char === ',') { linhaAtual.push(campoAtual); campoAtual = ''; }
+        else if (char === '\n' || char === '\r') {
+          if (char === '\r' && proximo === '\n') i++;
+          linhaAtual.push(campoAtual); campoAtual = '';
+          if (linhaAtual.length > 1 || linhaAtual[0] !== '') linhas.push(linhaAtual);
+          linhaAtual = [];
+        } else campoAtual += char;
+      }
+    }
+    if (campoAtual !== '' || linhaAtual.length > 0) { linhaAtual.push(campoAtual); linhas.push(linhaAtual); }
+    const cabecalho = linhas[0];
+    return linhas.slice(1).map(linha => {
+      const obj = {};
+      cabecalho.forEach((col, i) => { obj[col.trim()] = (linha[i] || '').trim(); });
+      return obj;
+    });
+  }
+  function parseDataBR(str) {
+    const partes = (str || '').split('/');
+    if (partes.length !== 3) return null;
+    const [dia, mes, ano] = partes.map(p => parseInt(p, 10));
+    if (!dia || !mes || ano < 2000) return null;
+    return new Date(ano, mes - 1, dia, 12, 0, 0).getTime();
+  }
+  function prepararImportacao() {
+    const arquivo = document.getElementById('importar-arquivo').files[0];
+    if (!arquivo) { alert('Escolhe o arquivo CSV primeiro.'); return; }
+    const leitor = new FileReader();
+    leitor.onload = (e) => {
+      const linhas = parseCSV(e.target.result);
+      let excluidosWhats = 0, excluidosData = 0;
+      importarDadosValidos = [];
+      linhas.forEach(linha => {
+        const whatsapp = (linha.WhatsApp || '').replace(/\D/g, '');
+        const vencimento = parseDataBR(linha.Vencimento);
+        if (!whatsapp) { excluidosWhats++; return; }
+        if (!vencimento) { excluidosData++; return; }
+        importarDadosValidos.push({
+          nome: (linha.Nome || '').trim() || 'Sem nome',
+          usuario: (linha.Usuario || '').trim(),
+          senha: (linha.Senha || '').trim(),
+          whatsapp,
+          servidor: (linha.Servidor || '').trim(),
+          planoValor: parseFloat((linha.Valor || '0').replace(',', '.')) || 0,
+          vencimento,
+          criadoEm: Date.now()
+        });
+      });
+      document.getElementById('importar-resumo').innerHTML = `
+        <div class="lista-item"><span>Total no arquivo</span><span class="mono">${linhas.length}</span></div>
+        <div class="lista-item"><span>Válidos</span><span class="mono" style="color:var(--ok);">${importarDadosValidos.length}</span></div>
+        <div class="lista-item"><span>Sem WhatsApp</span><span class="mono">${excluidosWhats}</span></div>
+        <div class="lista-item"><span>Data inválida</span><span class="mono">${excluidosData}</span></div>
+      `;
+      document.getElementById('btn-confirmar-importacao').style.display = importarDadosValidos.length > 0 ? 'inline-block' : 'none';
+    };
+    leitor.readAsText(arquivo, 'UTF-8');
+  }
+  async function confirmarImportacao() {
+    if (importarDadosValidos.length === 0) return;
+    if (!confirm(`Importar ${importarDadosValidos.length} clientes agora?`)) return;
+    const progresso = document.getElementById('importar-progresso');
+    let importados = 0;
+    const TAMANHO_LOTE = 20;
+    for (let i = 0; i < importarDadosValidos.length; i += TAMANHO_LOTE) {
+      const lote = importarDadosValidos.slice(i, i + TAMANHO_LOTE);
+      await Promise.all(lote.map(cliente => fetch(`${caminhoClientes()}.json`, { method: 'POST', body: JSON.stringify(cliente) })));
+      importados += lote.length;
+      progresso.textContent = `Importando... ${importados} / ${importarDadosValidos.length}`;
+    }
+    progresso.textContent = `✅ ${importados} clientes importados!`;
+    document.getElementById('btn-confirmar-importacao').style.display = 'none';
+    await carregarClientes();
+  }
+
+  // ---- Ativar cliente de teste como oficial ----
+  function abrirAtivarOficial(id) {
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+    document.getElementById('oficial-cliente-id').value = id;
+    document.getElementById('oficial-valor').value = cliente.planoValor || '';
+    const em30dias = new Date(Date.now() + 30*24*60*60*1000);
+    document.getElementById('oficial-vencimento').value = em30dias.toISOString().slice(0,10);
+    document.getElementById('oficial-vencimento-status').textContent = '';
+    document.getElementById('btn-buscar-vencimento-oficial').style.display = cliente.m3uLink ? 'inline-block' : 'none';
+    document.getElementById('overlay-ativar-oficial').classList.add('open');
+  }
+  function fecharAtivarOficial() {
+    document.getElementById('overlay-ativar-oficial').classList.remove('open');
+  }
+  async function buscarVencimentoOficial() {
+    const id = document.getElementById('oficial-cliente-id').value;
+    const cliente = clientes.find(c => c.id === id);
+    const statusEl = document.getElementById('oficial-vencimento-status');
+    if (!cliente || !cliente.m3uLink) return;
+    statusEl.textContent = 'Consultando...';
+    statusEl.style.color = 'var(--text-muted)';
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/consultar-iptv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ link: cliente.m3uLink })
+      });
+      const data = await res.json();
+      if (data.erro) { statusEl.textContent = '❌ ' + data.erro; statusEl.style.color = 'var(--danger)'; return; }
+      if (data.vencimento) {
+        document.getElementById('oficial-vencimento').value = new Date(data.vencimento).toISOString().slice(0,10);
+        statusEl.textContent = '✅ Vencimento encontrado!';
+        statusEl.style.color = 'var(--ok)';
+      }
+    } catch (err) {
+      statusEl.textContent = '❌ Erro ao consultar.';
+      statusEl.style.color = 'var(--danger)';
+    }
+  }
+  async function confirmarAtivarOficial() {
+    const id = document.getElementById('oficial-cliente-id').value;
+    const valor = parseFloat(document.getElementById('oficial-valor').value) || 0;
+    const vencimentoInput = document.getElementById('oficial-vencimento').value;
+    if (!valor || !vencimentoInput) { alert('Preenche o valor e o vencimento.'); return; }
+    const vencimento = new Date(vencimentoInput + 'T12:00:00').getTime();
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/ativar-oficial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ clienteId: id, planoValor: valor, vencimento })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+
+      fecharAtivarOficial();
+      await registrarFinanceiro({ nome: data.cliente?.nome, servidor: data.cliente?.servidor }, valor, 'cadastro');
+      await carregarClientes();
+
+      if (data.cliente?.whatsapp && data.comprovante) {
+        window.open(`https://wa.me/${data.cliente.whatsapp}?text=${encodeURIComponent(data.comprovante)}`, '_blank');
+      }
+      alert(`✅ ${data.cliente?.nome || 'Cliente'} agora é oficial!`);
+    } catch (err) {
+      alert('Erro ao ativar cliente.');
+    }
+  }
+
+  // ---- Remarketing ----
+  function clientesFiltradosRemarketing() {
+    const status = document.getElementById('remkt-status').value;
+    let lista = clientes.filter(c => !c.emTeste);
+    if (status === 'ativo') lista = lista.filter(c => statusCalculado(c) === 'ativo');
+    if (status === '3dias') lista = lista.filter(c => diasAte(c.vencimento) === 3);
+    if (status === 'hoje') lista = lista.filter(c => diasAte(c.vencimento) === 0);
+    if (status === 'vencido') lista = lista.filter(c => diasAte(c.vencimento) < 0);
+    return lista;
+  }
+  function atualizarContagemRemarketing() {
+    document.getElementById('remkt-contagem').textContent = `${clientesFiltradosRemarketing().length} cliente(s) selecionado(s)`;
+    document.getElementById('remkt-links-whats').innerHTML = '';
+  }
+  function abrirRemarketing() {
+    document.getElementById('remkt-status').value = 'todos';
+    document.getElementById('remkt-assunto').value = 'Oferta especial pra você';
+    document.getElementById('remkt-mensagem').value = 'Olá {nome}! Temos uma condição especial pra você renovar seu plano. Chama a gente!';
+    document.getElementById('remkt-links-whats').innerHTML = '';
+    atualizarContagemRemarketing();
+    document.getElementById('overlay-remarketing').classList.add('open');
+  }
+  function fecharRemarketing() {
+    document.getElementById('overlay-remarketing').classList.remove('open');
+  }
+  function preencherTemplateJS(template, c) {
+    const dias = diasAte(c.vencimento);
+    return (template || '')
+      .replaceAll('{nome}', c.nome || '')
+      .replaceAll('{data_vencimento}', new Date(c.vencimento).toLocaleDateString('pt-BR'))
+      .replaceAll('{valor_plano}', Number(c.planoValor || 0).toFixed(2))
+      .replaceAll('{servidor}', c.servidor || '')
+      .replaceAll('{dias_restantes}', String(dias));
+  }
+  async function enviarEmailMassa() {
+    const lista = clientesFiltradosRemarketing().filter(c => c.email);
+    if (lista.length === 0) { alert('Nenhum cliente com e-mail nesse filtro.'); return; }
+    if (!confirm(`Enviar e-mail pra ${lista.length} cliente(s)?`)) return;
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/remarketing-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({
+          clienteIds: lista.map(c => c.id),
+          assunto: document.getElementById('remkt-assunto').value,
+          corpo: document.getElementById('remkt-mensagem').value
+        })
+      });
+      const data = await res.json();
+      const sucesso = data.resultados?.filter(r => r.enviado).length || 0;
+      alert(`${sucesso} de ${lista.length} e-mail(s) enviado(s).`);
+    } catch (err) { alert('Erro ao enviar e-mails.'); }
+  }
+  async function enviarPushMassa() {
+    const lista = clientesFiltradosRemarketing().filter(c => c.fcmToken && c.notificacaoAtiva);
+    if (lista.length === 0) { alert('Nenhum cliente com push ativado nesse filtro.'); return; }
+    if (!confirm(`Enviar push pra ${lista.length} cliente(s)?`)) return;
+    const corpo = document.getElementById('remkt-mensagem').value;
+    let enviados = 0;
+    const idToken = await auth.currentUser.getIdToken();
+    for (const c of lista) {
+      const res = await fetch('/api/notificar-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ clienteId: c.id, mensagemCustom: corpo })
+      });
+      const data = await res.json();
+      if (data.enviado) enviados++;
+    }
+    alert(`${enviados} de ${lista.length} push(es) enviado(s).`);
+  }
+  function verLinksWhatsappMassa() {
+    const lista = clientesFiltradosRemarketing().filter(c => c.whatsapp);
+    const corpo = document.getElementById('remkt-mensagem').value;
+    const container = document.getElementById('remkt-links-whats');
+    if (lista.length === 0) { container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhum cliente com WhatsApp nesse filtro.</div>'; return; }
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">Clica em cada botão pra abrir a conversa já com a mensagem pronta:</div>` +
+      lista.map(c => {
+        const texto = preencherTemplateJS(corpo, c);
+        return `<div class="lista-item"><span>${c.nome}</span><a class="btn" style="padding:6px 12px; font-size:12px;" href="https://wa.me/${c.whatsapp}?text=${encodeURIComponent(texto)}" target="_blank">Abrir</a></div>`;
+      }).join('');
+  }
+
   // ---- Financeiro ----
   let financeiroRegistros = [];
   function caminhoFinanceiro() {
@@ -1182,12 +1669,25 @@
   }
 
   // ---- Mensagens ----
+  const TEMPLATES_PADRAO = {
+    msg7dias: 'Olá {nome}! Passando pra lembrar que seu plano vence em {dias_restantes} dias ({data_vencimento}). Valor: R$ {valor_plano}.',
+    msg3dias: 'Olá {nome}! Seu plano vence em {dias_restantes} dias ({data_vencimento}). Valor: R$ {valor_plano}. Quer renovar agora?',
+    msgVencimento: 'Olá {nome}! Seu plano vence hoje ({data_vencimento}). Valor: R$ {valor_plano}. Renova pra não perder o acesso?',
+    msgVencido: 'Olá {nome}! Seu plano venceu em {data_vencimento} e está com pagamento pendente. Valor: R$ {valor_plano}. Vamos regularizar hoje pra não perder o acesso?',
+    msgManual: 'Olá {nome}! Passando aqui sobre o seu plano, vencimento em {data_vencimento}. Qualquer coisa me chama!',
+    msgTesteAcabando: 'Olá {nome}! Seu teste está acabando em breve. Gostou? Fala com a gente pra virar cliente oficial!',
+    msgTesteAcabou: 'Olá {nome}! Seu teste terminou. Fala com a gente pra ativar seu plano oficial!',
+    msgBemVindoOficial: 'Olá {nome}! Seu plano foi ativado com sucesso ✅\nVencimento: {data_vencimento}\nValor: R$ {valor_plano}\nSeja bem-vindo(a)!',
+    emailAssunto: 'Seu plano vence em breve',
+    emailCorpo: 'Olá {nome},\n\nSeu plano vence em {data_vencimento}. Valor: R$ {valor_plano}.\n\nQualquer dúvida, chama no WhatsApp.'
+  };
+
   async function abrirMensagens() {
     const res = await fetch(`${caminhoConfig()}/templates.json`);
     const templates = await res.json() || {};
     const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','emailAssunto','emailCorpo'];
     chaves.forEach(chave => {
-      document.getElementById(`tpl-${chave}`).value = templates[chave] || '';
+      document.getElementById(`tpl-${chave}`).value = templates[chave] || TEMPLATES_PADRAO[chave] || '';
     });
     document.getElementById('overlay-mensagens').classList.add('open');
   }
@@ -1400,6 +1900,7 @@
     await carregarClientes();
   }
 
+  document.getElementById('remkt-status').addEventListener('change', atualizarContagemRemarketing);
   document.getElementById('fin-filtro-mes').addEventListener('change', renderizarFinanceiro);
 
   document.getElementById('renovar-data-manual').addEventListener('change', () => {
