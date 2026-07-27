@@ -93,7 +93,7 @@
   const FIREBASE_DB = firebaseConfig.databaseURL;
 
   const params = new URLSearchParams(window.location.search);
-  const refUid = params.get('ref');
+  const refUid = params.get('ref') || sessionStorage.getItem('ref_indicacao');
   let nomeIndicador = '';
 
   async function carregarIndicador() {
