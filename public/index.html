@@ -163,6 +163,19 @@
 
     <div id="banner-acesso" style="display:none; border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:13px;"></div>
 
+    <div class="overlay" id="overlay-pix-mensalidade">
+      <div class="modal">
+        <div class="modal-header"><h2>🔑 Pagar com PIX</h2><button class="modal-close-x" onclick="fecharPixMensalidade()">✕</button></div>
+        <div id="pix-conteudo" style="text-align:center;">
+          <div class="loading">Gerando o PIX...</div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="fecharPixMensalidade()">Fechar</button>
+          <button class="btn btn-primary" onclick="verificarPagamentoPix()">🔄 Já paguei, verificar</button>
+        </div>
+      </div>
+    </div>
+
     <div class="card" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;">
       <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">🔗 Seu link de indicação — quem se cadastrar por ele vira seu indicado</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -759,13 +772,13 @@
       banner.style.display = 'block';
       banner.style.background = 'rgba(96,165,250,0.12)';
       banner.style.borderColor = 'rgba(96,165,250,0.4)';
-      banner.innerHTML = `<span style="color:#60A5FA;">🧪 Você está no período de teste — restam ${horasRestantes}h. </span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:#60A5FA; text-decoration:underline;">Assinar agora</a>`;
+      banner.innerHTML = `<span style="color:#60A5FA;">🧪 Você está no período de teste — restam ${horasRestantes}h. </span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:#60A5FA; text-decoration:underline;">💳 Assinar com cartão</a> <span style="color:#60A5FA;">ou</span> <a href="javascript:void(0)" onclick="abrirPixMensalidade()" style="color:#60A5FA; text-decoration:underline;">🔑 Pagar com PIX este mês</a>`;
     } else {
       acessoLiberado = false;
       banner.style.display = 'block';
       banner.style.background = 'rgba(248,113,113,0.12)';
       banner.style.borderColor = 'rgba(248,113,113,0.4)';
-      banner.innerHTML = `<span style="color:var(--danger);">🔒 Seu período de teste terminou. Assine pra voltar a cadastrar e gerenciar clientes. </span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:var(--danger); text-decoration:underline; font-weight:600;">Assinar agora</a>`;
+      banner.innerHTML = `<span style="color:var(--danger);">🔒 Seu período de teste terminou. </span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:var(--danger); text-decoration:underline; font-weight:600;">💳 Assinar com cartão</a> <span style="color:var(--danger);">ou</span> <a href="javascript:void(0)" onclick="abrirPixMensalidade()" style="color:var(--danger); text-decoration:underline; font-weight:600;">🔑 Pagar com PIX este mês</a>`;
     }
   }
 
@@ -781,6 +794,53 @@
       window.open(data.linkCheckout, '_blank');
     } catch (err) {
       alert('Erro ao gerar link de assinatura.');
+    }
+  }
+
+  async function abrirPixMensalidade() {
+    document.getElementById('pix-conteudo').innerHTML = '<div class="loading">Gerando o PIX...</div>';
+    document.getElementById('overlay-pix-mensalidade').classList.add('open');
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerar-pix-mensalidade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }
+      });
+      const data = await res.json();
+      if (data.erro) {
+        document.getElementById('pix-conteudo').innerHTML = `<div style="color:var(--danger);">❌ ${data.erro}</div>`;
+        return;
+      }
+      document.getElementById('pix-conteudo').innerHTML = `
+        <img src="data:image/png;base64,${data.qrCodeBase64}" style="width:200px; height:200px; border-radius:8px; margin-bottom:12px;">
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">Escaneia com o app do seu banco, ou copia o código abaixo:</div>
+        <div style="display:flex; gap:6px;">
+          <input type="text" readonly value="${data.qrCodeTexto}" id="pix-codigo-texto" style="flex:1; font-size:11px;">
+          <button class="btn" style="padding:8px 12px; font-size:12px;" onclick="copiarCodigoPix()">Copiar</button>
+        </div>
+      `;
+    } catch (err) {
+      document.getElementById('pix-conteudo').innerHTML = '<div style="color:var(--danger);">❌ Erro ao gerar o PIX. Tenta de novo.</div>';
+    }
+  }
+  function fecharPixMensalidade() {
+    document.getElementById('overlay-pix-mensalidade').classList.remove('open');
+  }
+  function copiarCodigoPix() {
+    const input = document.getElementById('pix-codigo-texto');
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => alert('Código copiado!')).catch(() => {
+      document.execCommand('copy');
+      alert('Código copiado!');
+    });
+  }
+  async function verificarPagamentoPix() {
+    await verificarAcesso();
+    if (acessoLiberado) {
+      fecharPixMensalidade();
+      alert('✅ Pagamento confirmado!');
+    } else {
+      alert('Ainda não identificamos o pagamento. Se você já pagou, aguarda alguns segundos e tenta de novo — a confirmação é automática.');
     }
   }
 
