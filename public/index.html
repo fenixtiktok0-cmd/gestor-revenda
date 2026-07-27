@@ -128,6 +128,7 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
         <button class="btn" id="btn-menu-revendedores" style="display:none; text-align:left;" onclick="fecharMenu(); abrirRevendedores();">👥 Revendedores</button>
+        <button class="btn" id="btn-menu-comissionamento" style="display:none; text-align:left;" onclick="fecharMenu(); abrirComissionamento();">💰 Comissionamento</button>
         <button class="btn" id="btn-menu-config-plataforma" style="display:none; text-align:left;" onclick="fecharMenu(); abrirConfigPlataforma();">🔧 Configurações da Plataforma</button>
         <button class="btn" id="btn-criar-revendedor" style="display:none; text-align:left; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="fecharMenu(); abrirCriarRevendedor();">👑 Criar revendedor</button>
       </div>
@@ -509,7 +510,7 @@
     <div class="field"><label>Horas de teste grátis pra revendedor novo</label><input type="text" id="cp-teste-horas" placeholder="48"></div>
     <div class="field"><label>Valor da mensalidade (R$)</label><input type="text" id="cp-mensalidade" placeholder="19.90"></div>
     <div class="field"><label>Percentual de comissão pra quem indica (%)</label><input type="text" id="cp-comissao-percentual" placeholder="40"></div>
-    <div class="field"><label>Mensagem sobre o dia de pagamento das comissões</label><textarea id="cp-mensagem-comissao" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;" placeholder="Comissões são pagas todo dia 10 de cada mês."></textarea></div>
+    <div class="field"><label>Dia do mês em que você paga as comissões</label><input type="text" id="cp-dia-pagamento" placeholder="20"></div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharConfigPlataforma()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarConfigPlataforma()">Salvar</button>
@@ -534,6 +535,30 @@
         <button class="btn btn-primary" onclick="salvarDetalheRevendedor()">Salvar</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-comissionamento">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header"><h2>💰 Comissionamento</h2><button class="modal-close-x" onclick="fecharComissionamento()">✕</button></div>
+
+    <div id="alerta-ciclo-atrasado" style="display:none; background:rgba(248,113,113,0.12); border:1px solid var(--danger); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:13px; color:var(--danger); font-weight:600;"></div>
+
+    <div style="background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.35); border-radius:8px; padding:12px 14px; margin-bottom:14px;">
+      <div style="font-size:12px; color:var(--text-muted);" id="ciclo-comissionamento-label">Período vigente</div>
+      <div style="font-size:20px; font-weight:600; color:var(--ok);" id="ciclo-comissionamento-total">R$ 0,00</div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center;">
+      <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="usarCicloVigenteComissionamento()">📅 Voltar pro período vigente</button>
+      <input type="date" id="com-filtro-inicio" style="font-size:12px;">
+      <span style="color:var(--text-muted); font-size:12px;">até</span>
+      <input type="date" id="com-filtro-fim" style="font-size:12px;">
+      <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="renderizarComissionamento()">Filtrar</button>
+    </div>
+
+    <div id="lista-comissionamento" style="max-height:380px; overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharComissionamento()">Fechar</button></div>
   </div>
 </div>
 
@@ -752,6 +777,7 @@
     if (uidRevendedor === MASTER_UID) {
       document.getElementById('btn-criar-revendedor').style.display = 'inline-block';
       document.getElementById('btn-menu-revendedores').style.display = 'block';
+      document.getElementById('btn-menu-comissionamento').style.display = 'block';
       document.getElementById('btn-menu-config-plataforma').style.display = 'block';
     }
   });
@@ -877,15 +903,15 @@
     const [revRes, comRes, cfgRes] = await Promise.all([
       fetch(`${FIREBASE_DB}/revendedores.json`),
       fetch(`${FIREBASE_DB}/comissoes.json`),
-      fetch(`${FIREBASE_DB}/configPlataforma/mensagemComissao.json`)
+      fetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`)
     ]);
     const revData = await revRes.json() || {};
     const comData = await comRes.json() || {};
-    const mensagemComissao = await cfgRes.json();
+    const diaPagamento = await cfgRes.json();
 
     const bannerMsg = document.getElementById('banner-mensagem-comissao');
-    if (mensagemComissao) {
-      bannerMsg.textContent = 'ℹ️ ' + mensagemComissao;
+    if (diaPagamento) {
+      bannerMsg.textContent = `ℹ️ Comissões são pagas todo dia ${diaPagamento} de cada mês.`;
       bannerMsg.style.display = 'block';
     } else {
       bannerMsg.style.display = 'none';
@@ -1803,7 +1829,7 @@
     document.getElementById('cp-teste-horas').value = cfg.testeHoras ?? 48;
     document.getElementById('cp-mensalidade').value = cfg.mensalidadeValor ?? 19.90;
     document.getElementById('cp-comissao-percentual').value = cfg.comissaoPercentual ?? 40;
-    document.getElementById('cp-mensagem-comissao').value = cfg.mensagemComissao || '';
+    document.getElementById('cp-dia-pagamento').value = cfg.diaPagamentoComissao ?? 20;
     document.getElementById('overlay-config-plataforma').classList.add('open');
   }
   function fecharConfigPlataforma() {
@@ -1813,10 +1839,10 @@
     const testeHoras = parseFloat(document.getElementById('cp-teste-horas').value) || 48;
     const mensalidadeValor = parseFloat(document.getElementById('cp-mensalidade').value) || 19.90;
     const comissaoPercentual = parseFloat(document.getElementById('cp-comissao-percentual').value) || 40;
-    const mensagemComissao = document.getElementById('cp-mensagem-comissao').value.trim();
+    const diaPagamentoComissao = Math.min(28, Math.max(1, parseInt(document.getElementById('cp-dia-pagamento').value, 10) || 20));
     await fetch(`${FIREBASE_DB}/configPlataforma.json`, {
       method: 'PATCH',
-      body: JSON.stringify({ testeHoras, mensalidadeValor, comissaoPercentual, mensagemComissao })
+      body: JSON.stringify({ testeHoras, mensalidadeValor, comissaoPercentual, diaPagamentoComissao })
     });
     fecharConfigPlataforma();
     alert('Configurações da plataforma salvas!');
@@ -1825,6 +1851,140 @@
   // ---- Revendedores (master) ----
   let ultimaListaRevendedores = [];
   let ultimaListaComissoes = [];
+
+  // ---- Comissionamento (ciclo de pagamento) ----
+  let cicloComissionamento = { inicio: 0, fim: 0 };
+
+  function computeCiclo(diaPagamento, dataReferencia) {
+    let ano = dataReferencia.getFullYear();
+    let mesFim = dataReferencia.getMonth();
+    if (dataReferencia.getDate() > diaPagamento) {
+      mesFim += 1;
+      if (mesFim > 11) { mesFim = 0; ano += 1; }
+    }
+    const fim = new Date(ano, mesFim, diaPagamento, 23, 59, 59);
+    const inicio = new Date(ano, mesFim - 1, diaPagamento + 1, 0, 0, 0);
+    return { inicio: inicio.getTime(), fim: fim.getTime() };
+  }
+
+  async function abrirComissionamento() {
+    const cfgRes = await fetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`);
+    const diaPagamento = (await cfgRes.json()) || 20;
+
+    cicloComissionamento = computeCiclo(diaPagamento, new Date());
+    const cicloAnterior = computeCiclo(diaPagamento, new Date(cicloComissionamento.inicio - 1000));
+
+    document.getElementById('com-filtro-inicio').value = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
+    document.getElementById('com-filtro-fim').value = new Date(cicloComissionamento.fim).toISOString().slice(0,10);
+    document.getElementById('ciclo-comissionamento-label').textContent =
+      `Período vigente — vence dia ${new Date(cicloComissionamento.fim).toLocaleDateString('pt-BR')}`;
+
+    const [revRes, comRes] = await Promise.all([
+      fetch(`${FIREBASE_DB}/revendedores.json`),
+      fetch(`${FIREBASE_DB}/comissoes.json`)
+    ]);
+    ultimaListaRevendedores = Object.entries(await revRes.json() || {}).map(([id, r]) => ({ id, ...r }));
+    ultimaListaComissoes = Object.entries(await comRes.json() || {}).map(([id, c]) => ({ id, ...c }));
+
+    // Alerta: sobrou pendência do ciclo que já fechou?
+    const pendentesCicloAnterior = ultimaListaComissoes.filter(c =>
+      c.status === 'pendente' && c.data >= cicloAnterior.inicio && c.data <= cicloAnterior.fim
+    );
+    const alerta = document.getElementById('alerta-ciclo-atrasado');
+    if (pendentesCicloAnterior.length > 0) {
+      const totalAtrasado = pendentesCicloAnterior.reduce((s, c) => s + c.valor, 0);
+      alerta.style.display = 'block';
+      alerta.textContent = `⚠️ Ficou R$ ${totalAtrasado.toFixed(2)} pendente do ciclo que fechou dia ${new Date(cicloAnterior.fim).toLocaleDateString('pt-BR')} e ainda não foi pago!`;
+    } else {
+      alerta.style.display = 'none';
+    }
+
+    await renderizarComissionamento();
+    document.getElementById('overlay-comissionamento').classList.add('open');
+  }
+  function fecharComissionamento() {
+    document.getElementById('overlay-comissionamento').classList.remove('open');
+  }
+  function usarCicloVigenteComissionamento() {
+    document.getElementById('com-filtro-inicio').value = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
+    document.getElementById('com-filtro-fim').value = new Date(cicloComissionamento.fim).toISOString().slice(0,10);
+    document.getElementById('ciclo-comissionamento-label').textContent =
+      `Período vigente — vence dia ${new Date(cicloComissionamento.fim).toLocaleDateString('pt-BR')}`;
+    renderizarComissionamento();
+  }
+
+  async function renderizarComissionamento() {
+    const inicioInput = document.getElementById('com-filtro-inicio').value;
+    const fimInput = document.getElementById('com-filtro-fim').value;
+    const inicio = inicioInput ? new Date(inicioInput + 'T00:00:00').getTime() : 0;
+    const fim = fimInput ? new Date(fimInput + 'T23:59:59').getTime() : Date.now();
+
+    const inicioPadrao = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
+    if (inicioInput !== inicioPadrao) {
+      document.getElementById('ciclo-comissionamento-label').textContent = 'Período filtrado manualmente';
+    }
+
+    const comissoesNoPeriodo = ultimaListaComissoes.filter(c => c.data >= inicio && c.data <= fim && c.status === 'pendente');
+    const totalPeriodo = comissoesNoPeriodo.reduce((s, c) => s + c.valor, 0);
+    document.getElementById('ciclo-comissionamento-total').textContent = `R$ ${totalPeriodo.toFixed(2)}`;
+
+    // Só entram revendedores que têm pelo menos 1 indicado E algo pendente no período
+    const revendedoresComPendencia = ultimaListaRevendedores.filter(rev => {
+      const temIndicado = ultimaListaRevendedores.some(r => r.indicadoPor === rev.id);
+      const temPendenteNoPeriodo = comissoesNoPeriodo.some(c => c.revendedorId === rev.id);
+      return temIndicado && temPendenteNoPeriodo;
+    });
+
+    const container = document.getElementById('lista-comissionamento');
+    if (revendedoresComPendencia.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhuma comissão pendente nesse período.</div>';
+      return;
+    }
+
+    container.innerHTML = '<div class="loading" style="padding:20px;">Carregando detalhes...</div>';
+
+    const linhas = await Promise.all(revendedoresComPendencia.map(async (rev) => {
+      const comissoesDele = comissoesNoPeriodo.filter(c => c.revendedorId === rev.id);
+      const totalDele = comissoesDele.reduce((s, c) => s + c.valor, 0);
+
+      const [pixRes] = await Promise.all([
+        fetch(`${FIREBASE_DB}/revendedores/${rev.id}/config/chavePix.json`)
+      ]);
+      const chavePix = await pixRes.json();
+
+      const detalhesIndicados = await Promise.all(comissoesDele.map(async (c) => {
+        const indicado = ultimaListaRevendedores.find(r => r.id === c.indicadoId);
+        const clientesRes = await fetch(`${FIREBASE_DB}/revendedores/${c.indicadoId}/clientes.json?shallow=true`);
+        const clientesData = await clientesRes.json();
+        const numClientes = clientesData ? Object.keys(clientesData).length : 0;
+        const mesmoIp = indicado && rev.cadastroIp && indicado.cadastroIp && indicado.cadastroIp === rev.cadastroIp;
+        return `
+          <div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0;">
+            <span>${c.indicadoNome} ${mesmoIp ? '<span title="Cadastrado no mesmo IP de quem indicou" style="color:var(--warn);">⚠️ mesmo IP</span>' : ''} <span style="color:var(--text-muted);">— ${numClientes} cliente(s) cadastrado(s)</span></span>
+            <span class="mono">R$ ${c.valor.toFixed(2)}</span>
+          </div>
+        `;
+      }));
+
+      return `
+        <div class="lista-item" style="flex-direction:column; align-items:stretch; padding:14px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:600;">${rev.nome}</div>
+            <div class="mono" style="color:var(--ok); font-weight:600;">R$ ${totalDele.toFixed(2)}</div>
+          </div>
+          <div style="font-size:12px; color:var(--text-muted); margin:4px 0;">
+            🔑 Chave PIX: ${chavePix ? `<span class="mono">${chavePix}</span>` : '<span style="color:var(--danger);">não cadastrada</span>'}
+          </div>
+          <div style="background:var(--surface-2); border-radius:6px; padding:8px 10px; margin-top:4px;">
+            ${detalhesIndicados.join('')}
+          </div>
+          <button class="btn" style="margin-top:8px; padding:8px 12px; font-size:12px; align-self:flex-start;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${totalDele})">💵 Confirmar pagamento</button>
+        </div>
+      `;
+    }));
+
+    container.innerHTML = linhas.join('');
+  }
 
   async function abrirRevendedores() {
     const [revRes, comRes] = await Promise.all([
@@ -1999,7 +2159,11 @@
     ));
 
     fecharPagarComissao();
-    await abrirRevendedores();
+    if (document.getElementById('overlay-comissionamento').classList.contains('open')) {
+      await abrirComissionamento();
+    } else {
+      await abrirRevendedores();
+    }
     alert(`✅ ${pendentes.length} comissão(ões) marcada(s) como paga(s)!`);
   }
 
