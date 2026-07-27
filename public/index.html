@@ -128,7 +128,6 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirImportar();">📥 Importar clientes</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirPersonalizacao();">🎨 Personalização</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirAplicativos();">📲 Aplicativos</button>
-        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirIndicados();">👥 Meus indicados</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirRemarketing();">📣 Remarketing</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirNotificacoes();">🔔 Notificações</button>
@@ -204,6 +203,23 @@
         <input type="text" id="link-indicacao" readonly style="flex:1; min-width:200px; font-family:'JetBrains Mono',monospace; font-size:12px;">
         <button class="btn" onclick="copiarLinkIndicacao()">Copiar</button>
       </div>
+    </div>
+
+    <div class="card" id="card-meus-indicados" style="background:rgba(167,139,250,0.08); border:1px solid rgba(167,139,250,0.4); border-radius:12px; padding:18px; margin-bottom:20px;">
+      <div style="font-weight:700; font-size:14px; margin-bottom:10px; color:#A78BFA;">👥 Meus indicados</div>
+      <div id="banner-mensagem-comissao" style="display:none; font-size:12px; color:var(--text-muted); background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px;"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Data</th>
+            <th>Comissão</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-indicados"></tbody>
+      </table>
+      <div class="empty-state" id="empty-indicados" style="display:none; padding:16px 0 4px;">Você ainda não indicou ninguém.</div>
     </div>
 
     <button class="btn btn-primary" style="width:100%; margin-bottom:16px; padding:13px;" onclick="abrirModal()">+ Novo cliente</button>
@@ -596,25 +612,6 @@
   </div>
 </div>
 
-<div class="overlay" id="overlay-indicados">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-header"><h2>👥 Meus indicados</h2><button class="modal-close-x" onclick="fecharIndicados()">✕</button></div>
-    <div id="banner-mensagem-comissao" style="display:none; font-size:12px; color:var(--text-muted); background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px;"></div>
-    <table>
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Data</th>
-          <th>Comissão</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="tabela-indicados"></tbody>
-    </table>
-    <div class="empty-state" id="empty-indicados" style="display:none; padding:20px;">Você ainda não indicou ninguém.</div>
-    <div class="modal-actions"><button class="btn" onclick="fecharIndicados()">Fechar</button></div>
-  </div>
-</div>
 
 <div class="overlay" id="overlay-suporte">
   <div class="modal" style="max-width:520px;">
@@ -937,6 +934,7 @@
       carregarDashboardRevendedores();
     } else {
       carregarClientes();
+      carregarIndicadosFixo();
     }
   });
 
@@ -1124,7 +1122,7 @@
     });
   }
 
-  async function abrirIndicados() {
+  async function carregarIndicadosFixo() {
     const idToken = await auth.currentUser.getIdToken();
     const [revRes, comRes, cfgRes] = await Promise.all([
       fetch('/api/meus-indicados', { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } }),
@@ -1149,7 +1147,6 @@
     if (meusIndicados.length === 0) {
       tbody.innerHTML = '';
       empty.style.display = 'block';
-      document.getElementById('overlay-indicados').classList.add('open');
       return;
     }
     empty.style.display = 'none';
@@ -1179,11 +1176,6 @@
         </tr>
       `;
     }).join('');
-
-    document.getElementById('overlay-indicados').classList.add('open');
-  }
-  function fecharIndicados() {
-    document.getElementById('overlay-indicados').classList.remove('open');
   }
 
   function abrirCriarRevendedor() {
