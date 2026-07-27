@@ -137,6 +137,9 @@
       const cred = await auth.createUserWithEmailAndPassword(email, senha);
       const uid = cred.user.uid;
 
+      const testeHorasRes = await fetch(`${FIREBASE_DB}/configPlataforma/testeHoras.json`);
+      const testeHoras = (await testeHorasRes.json()) || 48;
+
       await fetch(`${FIREBASE_DB}/revendedores/${uid}.json`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -144,29 +147,11 @@
           email,
           criadoEm: Date.now(),
           ativo: true,
+          assinaturaStatus: 'teste',
+          testeAte: Date.now() + testeHoras * 60 * 60 * 1000,
           indicadoPor: refUid || null
         })
       });
-
-      // Registra a comissão pendente pra quem indicou
-      if (refUid) {
-        const configRes = await fetch(`${FIREBASE_DB}/config/comissaoValorPadrao.json`);
-        const valorComissao = (await configRes.json()) || 20;
-
-        await fetch(`${FIREBASE_DB}/comissoes.json`, {
-          method: 'POST',
-          body: JSON.stringify({
-            revendedorId: refUid,
-            revendedorNome: nomeIndicador || '',
-            indicadoId: uid,
-            indicadoNome: nome,
-            valor: valorComissao,
-            status: 'pendente',
-            data: Date.now(),
-            dataPagamento: null
-          })
-        });
-      }
 
       window.location.href = '/index.html';
     } catch (err) {
