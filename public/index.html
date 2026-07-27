@@ -135,7 +135,6 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirSuporte();">🎫 Suporte</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirTutoriais();">🎬 Tutoriais</button>
         <button class="btn" id="btn-menu-chamados" style="display:none; text-align:left;" onclick="fecharMenu(); abrirChamadosAdmin();">🎫 Chamados</button>
-        <button class="btn" id="btn-menu-revendedores" style="display:none; text-align:left;" onclick="fecharMenu(); abrirRevendedores();">👥 Revendedores</button>
         <button class="btn" id="btn-menu-comissionamento" style="display:none; text-align:left;" onclick="fecharMenu(); abrirComissionamento();">💰 Comissionamento</button>
         <button class="btn" id="btn-menu-config-plataforma" style="display:none; text-align:left;" onclick="fecharMenu(); abrirConfigPlataforma();">🔧 Configurações da Plataforma</button>
         <button class="btn" id="btn-criar-revendedor" style="display:none; text-align:left; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="fecharMenu(); abrirCriarRevendedor();">👑 Criar revendedor</button>
@@ -147,6 +146,7 @@
   </div>
 
   <main>
+    <div id="dashboard-clientes">
     <div class="stats">
       <div class="stat-card" id="card-todos" onclick="filtrar('todos')" style="cursor:pointer;">
         <div class="label">Total de clientes</div>
@@ -236,6 +236,40 @@
       <tbody id="tabela-clientes"></tbody>
     </table>
     <div class="empty-state" id="empty-state" style="display:none;">Nenhum cliente cadastrado ainda.</div>
+    </div>
+
+    <div id="dashboard-revendedores" style="display:none;">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="label">Total de revendedores</div>
+          <div class="value mono" id="rdash-total">0</div>
+        </div>
+        <div class="stat-card ok">
+          <div class="label">Mensalidade em dia</div>
+          <div class="value mono" id="rdash-ativos">0</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="label">Em teste</div>
+          <div class="value mono" id="rdash-teste">0</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="label">Vencidos</div>
+          <div class="value mono" id="rdash-vencidos">0</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%; margin-bottom:16px; padding:13px;" onclick="abrirCriarRevendedor()">👑 + Criar revendedor</button>
+
+      <div class="toolbar">
+        <input type="text" id="busca-revendedores" placeholder="Buscar por nome ou e-mail..." oninput="renderizarListaRevendedoresMaster()">
+      </div>
+
+      <div style="background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.35); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:13px;">
+        <b style="color:var(--ok);">Total geral pendente: <span id="total-pendente-geral">R$ 0,00</span></b> — só de indicações de outros revendedores
+      </div>
+
+      <div id="lista-revendedores-master"></div>
+    </div>
   </main>
 </div>
 
@@ -668,20 +702,6 @@
   </div>
 </div>
 
-<div class="overlay" id="overlay-revendedores">
-  <div class="modal" style="max-width:640px;">
-    <div class="modal-header"><h2>👥 Revendedores</h2><button class="modal-close-x" onclick="fecharRevendedores()">✕</button></div>
-    <div class="field">
-      <input type="text" id="busca-revendedores" placeholder="Buscar por nome ou e-mail..." oninput="renderizarListaRevendedoresMaster()">
-    </div>
-    <div style="background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.35); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:13px;">
-      <b style="color:var(--ok);">Total geral pendente: <span id="total-pendente-geral">R$ 0,00</span></b> — só de indicações de outros revendedores (as suas diretas não contam comissão)
-    </div>
-    <div id="lista-revendedores-master" style="max-height:400px; overflow-y:auto;"></div>
-    <div class="modal-actions"><button class="btn" onclick="fecharRevendedores()">Fechar</button></div>
-  </div>
-</div>
-
 <div class="overlay" id="overlay-pagar-comissao">
   <div class="modal">
     <div class="modal-header"><h2>Registrar pagamento</h2><button class="modal-close-x" onclick="fecharPagarComissao()">✕</button></div>
@@ -888,17 +908,20 @@
 
     document.getElementById('link-indicacao').value = `${window.location.origin}/cadastro.html?ref=${uidRevendedor}`;
 
-    carregarClientes();
     verificarAcesso();
     verificarNotificacaoRevendedor();
 
     if (uidRevendedor === MASTER_UID) {
+      document.getElementById('dashboard-clientes').style.display = 'none';
+      document.getElementById('dashboard-revendedores').style.display = 'block';
       document.getElementById('btn-criar-revendedor').style.display = 'inline-block';
-      document.getElementById('btn-menu-revendedores').style.display = 'block';
       document.getElementById('btn-menu-comissionamento').style.display = 'block';
       document.getElementById('btn-menu-config-plataforma').style.display = 'block';
       document.getElementById('btn-menu-chamados').style.display = 'block';
       document.getElementById('btn-menu-indicados').style.display = 'none';
+      carregarDashboardRevendedores();
+    } else {
+      carregarClientes();
     }
   });
 
@@ -2185,7 +2208,7 @@
     container.innerHTML = linhas.join('');
   }
 
-  async function abrirRevendedores() {
+  async function carregarDashboardRevendedores() {
     const [revRes, comRes] = await Promise.all([
       dbFetch(`${FIREBASE_DB}/revendedores.json`),
       dbFetch(`${FIREBASE_DB}/comissoes.json`)
@@ -2195,12 +2218,18 @@
     ultimaListaRevendedores = Object.entries(revendedoresData).map(([id, r]) => ({ id, ...r }));
     ultimaListaComissoes = Object.entries(comissoesData).map(([id, c]) => ({ id, ...c }));
 
+    const outros = ultimaListaRevendedores.filter(r => r.id !== MASTER_UID);
+    const ativos = outros.filter(r => r.assinaturaStatus === 'ativa' && r.pagoAte > Date.now());
+    const emTeste = outros.filter(r => r.assinaturaStatus === 'teste' && r.testeAte > Date.now());
+    const vencidos = outros.filter(r => !(r.assinaturaStatus === 'ativa' && r.pagoAte > Date.now()) && !(r.assinaturaStatus === 'teste' && r.testeAte > Date.now()));
+
+    document.getElementById('rdash-total').textContent = outros.length;
+    document.getElementById('rdash-ativos').textContent = ativos.length;
+    document.getElementById('rdash-teste').textContent = emTeste.length;
+    document.getElementById('rdash-vencidos').textContent = vencidos.length;
+
     document.getElementById('busca-revendedores').value = '';
     renderizarListaRevendedoresMaster();
-    document.getElementById('overlay-revendedores').classList.add('open');
-  }
-  function fecharRevendedores() {
-    document.getElementById('overlay-revendedores').classList.remove('open');
   }
 
   function renderizarListaRevendedoresMaster() {
@@ -2306,7 +2335,7 @@
       const data = await res.json();
       if (data.erro) { alert('Erro: ' + data.erro); return; }
       fecharDetalheRevendedor();
-      await abrirRevendedores();
+      await carregarDashboardRevendedores();
       alert('✅ Dados atualizados!');
     } catch (err) {
       alert('Erro ao salvar.');
@@ -2328,7 +2357,7 @@
       const data = await res.json();
       if (data.erro) { alert('Erro: ' + data.erro); return; }
       fecharDetalheRevendedor();
-      await abrirRevendedores();
+      await carregarDashboardRevendedores();
       alert('Revendedor excluído.');
     } catch (err) {
       alert('Erro ao excluir.');
@@ -2362,7 +2391,7 @@
       if (document.getElementById('overlay-comissionamento').classList.contains('open')) {
         await abrirComissionamento();
       } else {
-        await abrirRevendedores();
+        await carregarDashboardRevendedores();
       }
 
       const avisos = [];
