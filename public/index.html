@@ -2147,13 +2147,11 @@
     const labelTotal = statusFiltro === 'pago' ? 'Total pago no período' : statusFiltro === 'todos' ? 'Total (pendente + pago)' : 'Total pendente';
     document.getElementById('ciclo-comissionamento-total').innerHTML = `<span style="font-size:12px; color:var(--text-muted); display:block;">${labelTotal}</span>R$ ${totalPeriodo.toFixed(2)}`;
 
-    // Só entram revendedores que têm pelo menos 1 indicado E algo no período filtrado
-    // (o próprio admin nunca entra aqui — indicação dele é dinheiro dele mesmo)
+    // Entra qualquer revendedor (que não seja o admin) que tenha comissão
+    // no período filtrado — não importa se ele mesmo já indicou alguém.
     const revendedoresComPendencia = ultimaListaRevendedores.filter(rev => {
       if (rev.id === MASTER_UID) return false;
-      const temIndicado = ultimaListaRevendedores.some(r => r.indicadoPor === rev.id);
-      const temNoPeriodo = comissoesNoPeriodo.some(c => c.revendedorId === rev.id);
-      return temIndicado && temNoPeriodo;
+      return comissoesNoPeriodo.some(c => c.revendedorId === rev.id);
     });
 
     const container = document.getElementById('lista-comissionamento');
