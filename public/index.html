@@ -237,24 +237,6 @@
       <tbody id="tabela-indicados"></tbody>
     </table>
     <div class="empty-state" id="empty-indicados" style="display:none;">Você ainda não indicou ninguém.</div>
-
-    <div id="secao-comissoes-master" style="display:none; margin-top:32px;">
-      <h2 style="font-size:16px; color:#FBBF24;">💰 Comissões — visão geral (admin)</h2>
-      <table style="margin-top:10px;">
-        <thead>
-          <tr>
-            <th>Quem indicou</th>
-            <th>Quem foi indicado</th>
-            <th>Data</th>
-            <th>Valor</th>
-            <th>Status</th>
-            <th>Ação</th>
-          </tr>
-        </thead>
-        <tbody id="tabela-comissoes-master"></tbody>
-      </table>
-      <div class="empty-state" id="empty-comissoes-master" style="display:none;">Nenhuma comissão registrada ainda.</div>
-    </div>
   </main>
 </div>
 
@@ -556,8 +538,14 @@
 </div>
 
 <div class="overlay" id="overlay-revendedores">
-  <div class="modal" style="max-width:600px;">
+  <div class="modal" style="max-width:640px;">
     <div class="modal-header"><h2>👥 Revendedores</h2><button class="modal-close-x" onclick="fecharRevendedores()">✕</button></div>
+    <div class="field">
+      <input type="text" id="busca-revendedores" placeholder="Buscar por nome ou e-mail..." oninput="renderizarListaRevendedoresMaster()">
+    </div>
+    <div style="background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.35); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:13px;">
+      <b style="color:var(--ok);">Total geral pendente: <span id="total-pendente-geral">R$ 0,00</span></b> — só de indicações de outros revendedores (as suas diretas não contam comissão)
+    </div>
     <div id="lista-revendedores-master" style="max-height:400px; overflow-y:auto;"></div>
     <div class="modal-actions"><button class="btn" onclick="fecharRevendedores()">Fechar</button></div>
   </div>
@@ -765,8 +753,6 @@
       document.getElementById('btn-criar-revendedor').style.display = 'inline-block';
       document.getElementById('btn-menu-revendedores').style.display = 'block';
       document.getElementById('btn-menu-config-plataforma').style.display = 'block';
-      document.getElementById('secao-comissoes-master').style.display = 'block';
-      carregarComissoesMaster();
     }
   });
 
@@ -942,44 +928,6 @@
         </tr>
       `;
     }).join('');
-  }
-
-  async function carregarComissoesMaster() {
-    const res = await fetch(`${FIREBASE_DB}/comissoes.json`);
-    const data = await res.json() || {};
-    const todas = Object.entries(data).map(([id, c]) => ({ id, ...c })).sort((a,b) => b.data - a.data);
-
-    const tbody = document.getElementById('tabela-comissoes-master');
-    const empty = document.getElementById('empty-comissoes-master');
-
-    if (todas.length === 0) {
-      tbody.innerHTML = '';
-      empty.style.display = 'block';
-      return;
-    }
-    empty.style.display = 'none';
-
-    tbody.innerHTML = todas.map(c => `
-      <tr>
-        <td data-label="Quem indicou">${c.revendedorNome || c.revendedorId}</td>
-        <td data-label="Quem foi indicado">${c.indicadoNome}</td>
-        <td data-label="Data" class="mono">${new Date(c.data).toLocaleDateString('pt-BR')}</td>
-        <td data-label="Valor" class="mono">R$ ${Number(c.valor).toFixed(2)}</td>
-        <td data-label="Status"><span class="badge ${c.status === 'pago' ? 'ativo' : 'inativo'}">${c.status}</span></td>
-        <td data-label="Ação">
-          ${c.status === 'pendente' ? `<button class="btn" style="padding:6px 12px; font-size:12px;" onclick="marcarComoPago('${c.id}')">Marcar pago</button>` : '—'}
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  async function marcarComoPago(id) {
-    if (!confirm('Confirma que essa comissão já foi paga?')) return;
-    await fetch(`${FIREBASE_DB}/comissoes/${id}.json`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'pago', dataPagamento: Date.now() })
-    });
-    await carregarComissoesMaster();
   }
 
   function abrirCriarRevendedor() {
@@ -1876,6 +1824,7 @@
 
   // ---- Revendedores (master) ----
   let ultimaListaRevendedores = [];
+  let ultimaListaComissoes = [];
 
   async function abrirRevendedores() {
     const [revRes, comRes] = await Promise.all([
@@ -1884,14 +1833,32 @@
     ]);
     const revendedoresData = await revRes.json() || {};
     const comissoesData = await comRes.json() || {};
-    const listaRevendedores = Object.entries(revendedoresData).map(([id, r]) => ({ id, ...r }));
-    const listaComissoes = Object.entries(comissoesData).map(([id, c]) => ({ id, ...c }));
-    ultimaListaRevendedores = listaRevendedores;
+    ultimaListaRevendedores = Object.entries(revendedoresData).map(([id, r]) => ({ id, ...r }));
+    ultimaListaComissoes = Object.entries(comissoesData).map(([id, c]) => ({ id, ...c }));
+
+    document.getElementById('busca-revendedores').value = '';
+    renderizarListaRevendedoresMaster();
+    document.getElementById('overlay-revendedores').classList.add('open');
+  }
+  function fecharRevendedores() {
+    document.getElementById('overlay-revendedores').classList.remove('open');
+  }
+
+  function renderizarListaRevendedoresMaster() {
+    const busca = document.getElementById('busca-revendedores').value.toLowerCase();
+    const listaFiltrada = ultimaListaRevendedores.filter(rev =>
+      rev.nome?.toLowerCase().includes(busca) || rev.email?.toLowerCase().includes(busca)
+    );
+
+    const totalPendenteGeral = ultimaListaComissoes
+      .filter(c => c.status === 'pendente')
+      .reduce((s, c) => s + c.valor, 0);
+    document.getElementById('total-pendente-geral').textContent = `R$ ${totalPendenteGeral.toFixed(2)}`;
 
     const container = document.getElementById('lista-revendedores-master');
-    container.innerHTML = listaRevendedores.map(rev => {
-      const indicados = listaRevendedores.filter(r => r.indicadoPor === rev.id);
-      const comissoesDele = listaComissoes.filter(c => c.revendedorId === rev.id);
+    container.innerHTML = listaFiltrada.map(rev => {
+      const indicados = ultimaListaRevendedores.filter(r => r.indicadoPor === rev.id);
+      const comissoesDele = ultimaListaComissoes.filter(c => c.revendedorId === rev.id);
       const pendente = comissoesDele.filter(c => c.status === 'pendente').reduce((s, c) => s + c.valor, 0);
       const statusAssinatura = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa' : (rev.assinaturaStatus === 'teste' && rev.testeAte > Date.now() ? 'teste' : 'vencida');
       const corStatus = statusAssinatura === 'ativa' ? 'var(--ok)' : statusAssinatura === 'teste' ? '#60A5FA' : 'var(--danger)';
@@ -1910,16 +1877,33 @@
           </div>
           <div style="display:flex; gap:8px; margin-top:8px;">
             ${pendente > 0 ? `<button class="btn" style="padding:8px 12px; font-size:12px;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${pendente})">💵 Pagar tudo</button>` : ''}
+            ${indicados.length > 0 ? `<button class="btn" style="padding:8px 12px; font-size:12px;" onclick="toggleDetalheIndicados('${rev.id}')">🔍 Ver indicados</button>` : ''}
             <button class="btn" style="padding:8px 12px; font-size:12px;" onclick="abrirDetalheRevendedor('${rev.id}')">✏️ Ver/editar</button>
           </div>
+          <div id="detalhe-indicados-${rev.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);"></div>
         </div>
       `;
-    }).join('') || '<div style="color:var(--text-muted); font-size:13px;">Nenhum revendedor ainda.</div>';
-
-    document.getElementById('overlay-revendedores').classList.add('open');
+    }).join('') || '<div style="color:var(--text-muted); font-size:13px;">Nenhum revendedor encontrado.</div>';
   }
-  function fecharRevendedores() {
-    document.getElementById('overlay-revendedores').classList.remove('open');
+
+  function toggleDetalheIndicados(revId) {
+    const container = document.getElementById(`detalhe-indicados-${revId}`);
+    const abrindo = container.style.display === 'none';
+    document.querySelectorAll('[id^="detalhe-indicados-"]').forEach(el => el.style.display = 'none');
+    if (!abrindo) return;
+
+    const indicados = ultimaListaRevendedores.filter(r => r.indicadoPor === revId);
+    container.style.display = 'block';
+    container.innerHTML = indicados.map(ind => {
+      const comissaoDele = ultimaListaComissoes.find(c => c.indicadoId === ind.id && c.status === 'pendente');
+      const statusAssinatura = (ind.assinaturaStatus === 'ativa' && ind.pagoAte > Date.now()) ? 'mensalidade em dia' : (ind.assinaturaStatus === 'teste' ? 'em teste' : 'mensalidade vencida');
+      return `
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding:5px 0;">
+          <span>${ind.nome} <span style="color:var(--text-muted);">— ${statusAssinatura}</span></span>
+          <span class="mono" style="color:var(--text-muted);">${comissaoDele ? 'R$ ' + comissaoDele.valor.toFixed(2) + ' pendente' : '—'}</span>
+        </div>
+      `;
+    }).join('');
   }
 
   function abrirDetalheRevendedor(revendedorId) {
