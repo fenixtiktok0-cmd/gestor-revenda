@@ -97,6 +97,9 @@
     tbody tr { border-bottom:1px solid var(--border); padding:14px 16px; }
     tbody td { border:none; padding:4px 0; display:flex; justify-content:space-between; }
     tbody td::before { content: attr(data-label); color:var(--text-muted); font-size:12px; }
+    .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-card { padding: 14px 16px; }
+    .stat-card .value { font-size: 22px; }
   }
 </style>
 </head>
@@ -122,6 +125,7 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirImportar();">📥 Importar clientes</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirPersonalizacao();">🎨 Personalização</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirAplicativos();">📲 Aplicativos</button>
+        <button class="btn" id="btn-menu-indicados" style="text-align:left;" onclick="fecharMenu(); abrirIndicados();">👥 Meus indicados</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirRemarketing();">📣 Remarketing</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirNotificacoes();">🔔 Notificações</button>
@@ -231,21 +235,6 @@
       <tbody id="tabela-clientes"></tbody>
     </table>
     <div class="empty-state" id="empty-state" style="display:none;">Nenhum cliente cadastrado ainda.</div>
-
-    <h2 style="margin-top:32px; font-size:16px;">👥 Meus indicados</h2>
-    <div id="banner-mensagem-comissao" style="display:none; font-size:12px; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin:8px 0 4px;"></div>
-    <table style="margin-top:10px;">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Data</th>
-          <th>Comissão</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="tabela-indicados"></tbody>
-    </table>
-    <div class="empty-state" id="empty-indicados" style="display:none;">Você ainda não indicou ninguém.</div>
   </main>
 </div>
 
@@ -543,6 +532,26 @@
         <button class="btn btn-primary" onclick="salvarDetalheRevendedor()">Salvar</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-indicados">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>👥 Meus indicados</h2><button class="modal-close-x" onclick="fecharIndicados()">✕</button></div>
+    <div id="banner-mensagem-comissao" style="display:none; font-size:12px; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px;"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Data</th>
+          <th>Comissão</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-indicados"></tbody>
+    </table>
+    <div class="empty-state" id="empty-indicados" style="display:none;">Você ainda não indicou ninguém.</div>
+    <div class="modal-actions"><button class="btn" onclick="fecharIndicados()">Fechar</button></div>
   </div>
 </div>
 
@@ -851,7 +860,6 @@
     document.getElementById('link-indicacao').value = `${window.location.origin}/cadastro.html?ref=${uidRevendedor}`;
 
     carregarClientes();
-    carregarIndicados();
     verificarAcesso();
     verificarNotificacaoRevendedor();
 
@@ -861,6 +869,7 @@
       document.getElementById('btn-menu-comissionamento').style.display = 'block';
       document.getElementById('btn-menu-config-plataforma').style.display = 'block';
       document.getElementById('btn-menu-chamados').style.display = 'block';
+      document.getElementById('btn-menu-indicados').style.display = 'none';
     }
   });
 
@@ -1037,7 +1046,7 @@
     });
   }
 
-  async function carregarIndicados() {
+  async function abrirIndicados() {
     const [revRes, comRes, cfgRes] = await Promise.all([
       fetch(`${FIREBASE_DB}/revendedores.json`),
       fetch(`${FIREBASE_DB}/comissoes.json`),
@@ -1066,6 +1075,7 @@
     if (meusIndicados.length === 0) {
       tbody.innerHTML = '';
       empty.style.display = 'block';
+      document.getElementById('overlay-indicados').classList.add('open');
       return;
     }
     empty.style.display = 'none';
@@ -1077,7 +1087,10 @@
       const statusAssinatura = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa' : (rev.assinaturaStatus === 'teste' ? 'teste' : 'vencida');
       let statusHtml;
       if (statusAssinatura === 'ativa' && comissaoDoMes) {
-        statusHtml = `<span class="badge ${comissaoDoMes.status === 'pago' ? 'ativo' : 'inativo'}">mensalidade paga · comissão ${comissaoDoMes.status}</span>`;
+        const dataPagoTexto = comissaoDoMes.status === 'pago' && comissaoDoMes.dataPagamento
+          ? ` (recebido em ${new Date(comissaoDoMes.dataPagamento).toLocaleDateString('pt-BR')})`
+          : '';
+        statusHtml = `<span class="badge ${comissaoDoMes.status === 'pago' ? 'ativo' : 'inativo'}">mensalidade paga · comissão ${comissaoDoMes.status}${dataPagoTexto}</span>`;
       } else if (statusAssinatura === 'teste') {
         statusHtml = `<span class="badge inativo">em teste</span>`;
       } else {
@@ -1092,6 +1105,11 @@
         </tr>
       `;
     }).join('');
+
+    document.getElementById('overlay-indicados').classList.add('open');
+  }
+  function fecharIndicados() {
+    document.getElementById('overlay-indicados').classList.remove('open');
   }
 
   function abrirCriarRevendedor() {
