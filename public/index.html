@@ -1047,13 +1047,14 @@
   }
 
   async function abrirIndicados() {
+    const idToken = await auth.currentUser.getIdToken();
     const [revRes, comRes, cfgRes] = await Promise.all([
-      fetch(`${FIREBASE_DB}/revendedores.json`),
-      fetch(`${FIREBASE_DB}/comissoes.json`),
+      fetch('/api/meus-indicados', { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } }),
+      fetch('/api/minhas-comissoes', { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } }),
       fetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`)
     ]);
-    const revData = await revRes.json() || {};
-    const comData = await comRes.json() || {};
+    const { indicados: meusIndicados } = await revRes.json();
+    const { comissoes: todasComissoes } = await comRes.json();
     const diaPagamento = await cfgRes.json();
 
     const bannerMsg = document.getElementById('banner-mensagem-comissao');
@@ -1063,11 +1064,6 @@
     } else {
       bannerMsg.style.display = 'none';
     }
-
-    const meusIndicados = Object.entries(revData)
-      .filter(([, r]) => r.indicadoPor === uidRevendedor)
-      .map(([id, r]) => ({ id, ...r }));
-    const todasComissoes = Object.entries(comData).map(([id, c]) => ({ id, ...c }));
 
     const tbody = document.getElementById('tabela-indicados');
     const empty = document.getElementById('empty-indicados');
@@ -2516,12 +2512,10 @@
   }
 
   async function carregarMeusChamados() {
-    const res = await fetch(`${caminhoChamados()}.json`);
-    const data = await res.json() || {};
-    const meus = Object.entries(data)
-      .filter(([, c]) => c.revendedorId === uidRevendedor)
-      .map(([id, c]) => ({ id, ...c }))
-      .sort((a,b) => b.criadoEm - a.criadoEm);
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/meus-chamados', { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } });
+    const { chamados } = await res.json();
+    const meus = chamados || [];
 
     const container = document.getElementById('lista-meus-chamados');
     container.innerHTML = meus.length === 0
