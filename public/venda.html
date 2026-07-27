@@ -293,7 +293,7 @@
     <div class="stats-strip">
       <div class="cell"><div class="num">0</div><div class="lbl">risco de bloqueio</div></div>
       <div class="cell"><div class="num">24h</div><div class="lbl">avisos automáticos</div></div>
-      <div class="cell"><div class="num">40%</div><div class="lbl">comissão por indicação</div></div>
+      <div class="cell"><div class="num" id="stat-comissao-pct">40%</div><div class="lbl">comissão por indicação</div></div>
       <div class="cell"><div class="num">100%</div><div class="lbl">isolado por revendedor</div></div>
     </div>
   </div>
@@ -398,14 +398,14 @@
       </div>
       <div class="affiliate-card">
         <div style="font-size:13px; color:var(--text-muted); margin-bottom:4px;">Se você indicar...</div>
-        <div class="calc-row"><span>5 revendedores ativos</span><span class="v" style="color:var(--green);">R$ 39,80/mês</span></div>
-        <div class="calc-row"><span>10 revendedores ativos</span><span class="v" style="color:var(--green);">R$ 79,60/mês</span></div>
-        <div class="calc-row"><span>25 revendedores ativos</span><span class="v" style="color:var(--green);">R$ 199,00/mês</span></div>
+        <div class="calc-row"><span>5 revendedores ativos</span><span class="v" id="calc-5" style="color:var(--green);">R$ 39,80/mês</span></div>
+        <div class="calc-row"><span>10 revendedores ativos</span><span class="v" id="calc-10" style="color:var(--green);">R$ 79,60/mês</span></div>
+        <div class="calc-row"><span>25 revendedores ativos</span><span class="v" id="calc-25" style="color:var(--green);">R$ 199,00/mês</span></div>
         <div class="calc-total">
           <span class="label">Renda passiva, todo mês</span>
           <span class="v">📈</span>
         </div>
-        <p style="font-size:12px; color:var(--text-muted); margin-top:14px;">Estimativa com 40% de comissão sobre a mensalidade padrão. Sem precisar cadastrar um cliente sequer pra essas pessoas — é só indicar.</p>
+        <p style="font-size:12px; color:var(--text-muted); margin-top:14px;">Estimativa com <span id="calc-disclaimer-pct">40%</span> de comissão sobre a mensalidade padrão. Sem precisar cadastrar um cliente sequer pra essas pessoas — é só indicar.</p>
       </div>
     </div>
   </div>
@@ -484,7 +484,7 @@
     <div class="pricing-card">
       <div class="eyebrow" style="position:relative;">Teste grátis primeiro</div>
       <h3 style="font-size:22px;">Plano Revendedor</h3>
-      <div class="price-tag">R$ 19,90 <span>/mês</span></div>
+      <div class="price-tag" id="price-tag">R$ 19,90 <span>/mês</span></div>
       <div style="font-size:13px; color:var(--text-muted); position:relative;">depois do período de teste</div>
       <ul class="price-list">
         <li><span class="check">✓</span> Clientes, servidores e apps ilimitados</li>
@@ -545,6 +545,38 @@
   // Repassa o ?ref= (link de indicação) pra tela de cadastro, sem perder
   // a indicação de quem mandou o link da página de vendas. Guarda também
   // no sessionStorage como reforço, caso o clique não pegue o link a tempo.
+  // Busca os valores reais (mensalidade e % de comissão) direto do painel
+  // admin, pra essa página nunca ficar desatualizada se você mudar o preço.
+  (async function carregarValoresReais() {
+    try {
+      const res = await fetch('https://gestor-revenda-a0e61-default-rtdb.firebaseio.com/configPlataforma.json');
+      const cfg = await res.json() || {};
+      const mensalidade = cfg.mensalidadeValor ?? 19.90;
+      const percentual = cfg.comissaoPercentual ?? 40;
+      const comissaoUnitaria = mensalidade * (percentual / 100);
+
+      const fmt = (v) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+
+      const priceTag = document.getElementById('price-tag');
+      if (priceTag) priceTag.innerHTML = `${fmt(mensalidade)} <span>/mês</span>`;
+
+      const statPct = document.getElementById('stat-comissao-pct');
+      if (statPct) statPct.textContent = `${percentual}%`;
+
+      const calc5 = document.getElementById('calc-5');
+      if (calc5) calc5.textContent = `${fmt(comissaoUnitaria * 5)}/mês`;
+      const calc10 = document.getElementById('calc-10');
+      if (calc10) calc10.textContent = `${fmt(comissaoUnitaria * 10)}/mês`;
+      const calc25 = document.getElementById('calc-25');
+      if (calc25) calc25.textContent = `${fmt(comissaoUnitaria * 25)}/mês`;
+
+      const disclaimerPct = document.getElementById('calc-disclaimer-pct');
+      if (disclaimerPct) disclaimerPct.textContent = `${percentual}%`;
+    } catch (err) {
+      // Se der erro, os valores padrão que já estão escritos no HTML continuam valendo.
+    }
+  })();
+
   (function repassarIndicacao() {
     const ref = new URLSearchParams(window.location.search).get('ref');
     if (!ref) return;
