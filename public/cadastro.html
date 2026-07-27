@@ -136,11 +136,12 @@
     try {
       const cred = await auth.createUserWithEmailAndPassword(email, senha);
       const uid = cred.user.uid;
+      const idTokenNovo = await cred.user.getIdToken();
 
-      const testeHorasRes = await fetch(`${FIREBASE_DB}/configPlataforma/testeHoras.json`);
+      const testeHorasRes = await fetch(`${FIREBASE_DB}/configPlataforma/testeHoras.json?auth=${idTokenNovo}`);
       const testeHoras = (await testeHorasRes.json()) || 48;
 
-      await fetch(`${FIREBASE_DB}/revendedores/${uid}.json`, {
+      await fetch(`${FIREBASE_DB}/revendedores/${uid}.json?auth=${idTokenNovo}`, {
         method: 'PUT',
         body: JSON.stringify({
           nome,
@@ -154,7 +155,6 @@
       });
 
       try {
-        const idTokenNovo = await cred.user.getIdToken();
         await fetch('/api/registrar-ip', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idTokenNovo}` }
