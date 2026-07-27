@@ -127,6 +127,8 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirFinanceiro();">💰 Financeiro</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
+        <button class="btn" id="btn-menu-revendedores" style="display:none; text-align:left;" onclick="fecharMenu(); abrirRevendedores();">👥 Revendedores</button>
+        <button class="btn" id="btn-menu-config-plataforma" style="display:none; text-align:left;" onclick="fecharMenu(); abrirConfigPlataforma();">🔧 Configurações da Plataforma</button>
         <button class="btn" id="btn-criar-revendedor" style="display:none; text-align:left; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="fecharMenu(); abrirCriarRevendedor();">👑 Criar revendedor</button>
       </div>
       <div class="modal-actions">
@@ -158,6 +160,8 @@
         <div class="value mono" id="stat-vencidos">0</div>
       </div>
     </div>
+
+    <div id="banner-acesso" style="display:none; border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:13px;"></div>
 
     <div class="card" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;">
       <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">🔗 Seu link de indicação — quem se cadastrar por ele vira seu indicado</div>
@@ -207,6 +211,7 @@
     <div class="empty-state" id="empty-state" style="display:none;">Nenhum cliente cadastrado ainda.</div>
 
     <h2 style="margin-top:32px; font-size:16px;">👥 Meus indicados</h2>
+    <div id="banner-mensagem-comissao" style="display:none; font-size:12px; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin:8px 0 4px;"></div>
     <table style="margin-top:10px;">
       <thead>
         <tr>
@@ -423,6 +428,10 @@
       <input type="text" id="cfg-whatsapp" placeholder="5521999999999">
       <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Vai ser usado como botão de suporte na página do cliente (quando construirmos ela).</div>
     </div>
+    <div class="field">
+      <label>Sua chave PIX (pra receber comissão de indicação)</label>
+      <input type="text" id="cfg-pix" placeholder="CPF, e-mail, telefone ou chave aleatória">
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharConfiguracoes()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarConfiguracoes()">Salvar</button>
@@ -495,6 +504,41 @@
     <div id="lista-aplicativos" style="margin-top:16px;"></div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharAplicativos()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-config-plataforma">
+  <div class="modal">
+    <div class="modal-header"><h2>🔧 Configurações da Plataforma</h2><button class="modal-close-x" onclick="fecharConfigPlataforma()">✕</button></div>
+    <div class="field"><label>Horas de teste grátis pra revendedor novo</label><input type="text" id="cp-teste-horas" placeholder="48"></div>
+    <div class="field"><label>Valor da mensalidade (R$)</label><input type="text" id="cp-mensalidade" placeholder="19.90"></div>
+    <div class="field"><label>Percentual de comissão pra quem indica (%)</label><input type="text" id="cp-comissao-percentual" placeholder="40"></div>
+    <div class="field"><label>Mensagem sobre o dia de pagamento das comissões</label><textarea id="cp-mensagem-comissao" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;" placeholder="Comissões são pagas todo dia 10 de cada mês."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharConfigPlataforma()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConfigPlataforma()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-revendedores">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header"><h2>👥 Revendedores</h2><button class="modal-close-x" onclick="fecharRevendedores()">✕</button></div>
+    <div id="lista-revendedores-master" style="max-height:400px; overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharRevendedores()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-pagar-comissao">
+  <div class="modal">
+    <div class="modal-header"><h2>Registrar pagamento</h2><button class="modal-close-x" onclick="fecharPagarComissao()">✕</button></div>
+    <input type="hidden" id="pagar-revendedor-id">
+    <div id="pagar-resumo" style="margin-bottom:16px; font-size:14px;"></div>
+    <div class="field"><label>Código da transação PIX (opcional)</label><input type="text" id="pagar-codigo-pix" placeholder="E00000000202..."></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharPagarComissao()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarPagarComissao()">Confirmar pagamento</button>
     </div>
   </div>
 </div>
@@ -682,13 +726,63 @@
 
     carregarClientes();
     carregarIndicados();
+    verificarAcesso();
 
     if (uidRevendedor === MASTER_UID) {
       document.getElementById('btn-criar-revendedor').style.display = 'inline-block';
+      document.getElementById('btn-menu-revendedores').style.display = 'block';
+      document.getElementById('btn-menu-config-plataforma').style.display = 'block';
       document.getElementById('secao-comissoes-master').style.display = 'block';
       carregarComissoesMaster();
     }
   });
+
+  let acessoLiberado = true;
+
+  async function verificarAcesso() {
+    if (uidRevendedor === MASTER_UID) return; // admin nunca é restrito
+
+    const res = await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`);
+    const meuCadastro = await res.json() || {};
+
+    const banner = document.getElementById('banner-acesso');
+    const status = meuCadastro.assinaturaStatus || 'teste';
+    const testeAte = meuCadastro.testeAte || 0;
+    const emTesteValido = status === 'teste' && testeAte > Date.now();
+
+    if (status === 'ativa') {
+      acessoLiberado = true;
+      banner.style.display = 'none';
+    } else if (emTesteValido) {
+      acessoLiberado = true;
+      const horasRestantes = Math.round((testeAte - Date.now()) / (1000*60*60));
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(96,165,250,0.12)';
+      banner.style.borderColor = 'rgba(96,165,250,0.4)';
+      banner.innerHTML = `<span style="color:#60A5FA;">🧪 Você está no período de teste — restam ${horasRestantes}h. </span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:#60A5FA; text-decoration:underline;">Assinar agora</a>`;
+    } else {
+      acessoLiberado = false;
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(248,113,113,0.12)';
+      banner.style.borderColor = 'rgba(248,113,113,0.4)';
+      banner.innerHTML = `<span style="color:var(--danger);">🔒 Seu período de teste terminou. Assine pra voltar a cadastrar e gerenciar clientes. </span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:var(--danger); text-decoration:underline; font-weight:600;">Assinar agora</a>`;
+    }
+  }
+
+  async function iniciarAssinatura() {
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerar-assinatura', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      window.open(data.linkCheckout, '_blank');
+    } catch (err) {
+      alert('Erro ao gerar link de assinatura.');
+    }
+  }
 
   function copiarLinkIndicacao() {
     const input = document.getElementById('link-indicacao');
@@ -702,29 +796,60 @@
   }
 
   async function carregarIndicados() {
-    const res = await fetch(`${FIREBASE_DB}/comissoes.json`);
-    const data = await res.json() || {};
-    const todas = Object.entries(data).map(([id, c]) => ({ id, ...c }));
-    const minhas = todas.filter(c => c.revendedorId === uidRevendedor).sort((a,b) => b.data - a.data);
+    const [revRes, comRes, cfgRes] = await Promise.all([
+      fetch(`${FIREBASE_DB}/revendedores.json`),
+      fetch(`${FIREBASE_DB}/comissoes.json`),
+      fetch(`${FIREBASE_DB}/configPlataforma/mensagemComissao.json`)
+    ]);
+    const revData = await revRes.json() || {};
+    const comData = await comRes.json() || {};
+    const mensagemComissao = await cfgRes.json();
+
+    const bannerMsg = document.getElementById('banner-mensagem-comissao');
+    if (mensagemComissao) {
+      bannerMsg.textContent = 'ℹ️ ' + mensagemComissao;
+      bannerMsg.style.display = 'block';
+    } else {
+      bannerMsg.style.display = 'none';
+    }
+
+    const meusIndicados = Object.entries(revData)
+      .filter(([, r]) => r.indicadoPor === uidRevendedor)
+      .map(([id, r]) => ({ id, ...r }));
+    const todasComissoes = Object.entries(comData).map(([id, c]) => ({ id, ...c }));
 
     const tbody = document.getElementById('tabela-indicados');
     const empty = document.getElementById('empty-indicados');
 
-    if (minhas.length === 0) {
+    if (meusIndicados.length === 0) {
       tbody.innerHTML = '';
       empty.style.display = 'block';
       return;
     }
     empty.style.display = 'none';
 
-    tbody.innerHTML = minhas.map(c => `
-      <tr>
-        <td data-label="Nome">${c.indicadoNome}</td>
-        <td data-label="Data" class="mono">${new Date(c.data).toLocaleDateString('pt-BR')}</td>
-        <td data-label="Comissão" class="mono">R$ ${Number(c.valor).toFixed(2)}</td>
-        <td data-label="Status"><span class="badge ${c.status === 'pago' ? 'ativo' : 'inativo'}">${c.status}</span></td>
-      </tr>
-    `).join('');
+    const mesAtual = chaveMes(Date.now());
+
+    tbody.innerHTML = meusIndicados.map(rev => {
+      const comissaoDoMes = todasComissoes.find(c => c.indicadoId === rev.id && c.mesReferencia === mesAtual);
+      const statusAssinatura = rev.assinaturaStatus || 'teste';
+      let statusHtml;
+      if (statusAssinatura === 'ativa' && comissaoDoMes) {
+        statusHtml = `<span class="badge ${comissaoDoMes.status === 'pago' ? 'ativo' : 'inativo'}">mensalidade paga · comissão ${comissaoDoMes.status}</span>`;
+      } else if (statusAssinatura === 'teste') {
+        statusHtml = `<span class="badge inativo">em teste</span>`;
+      } else {
+        statusHtml = `<span class="badge inativo">mensalidade pendente</span>`;
+      }
+      return `
+        <tr>
+          <td data-label="Nome">${rev.nome}</td>
+          <td data-label="Data" class="mono">${new Date(rev.criadoEm).toLocaleDateString('pt-BR')}</td>
+          <td data-label="Comissão" class="mono">${comissaoDoMes ? 'R$ ' + Number(comissaoDoMes.valor).toFixed(2) : '—'}</td>
+          <td data-label="Status">${statusHtml}</td>
+        </tr>
+      `;
+    }).join('');
   }
 
   async function carregarComissoesMaster() {
@@ -1204,6 +1329,7 @@
   }
 
   function abrirModal() {
+    if (!acessoLiberado) { alert('Seu período de teste terminou. Assine pra voltar a cadastrar clientes.'); return; }
     document.getElementById('modal-titulo').textContent = 'Novo cliente';
     document.getElementById('cliente-id').value = '';
     document.getElementById('f-teste').checked = false;
@@ -1227,6 +1353,7 @@
   }
 
   function editarCliente(id) {
+    if (!acessoLiberado) { alert('Seu período de teste terminou. Assine pra voltar a gerenciar clientes.'); return; }
     const c = clientes.find(x => x.id === id);
     if (!c) return;
     document.getElementById('modal-titulo').textContent = 'Editar cliente';
@@ -1629,6 +1756,103 @@
       }).join('');
   }
 
+  // ---- Configurações da Plataforma (master) ----
+  async function abrirConfigPlataforma() {
+    const res = await fetch(`${FIREBASE_DB}/configPlataforma.json`);
+    const cfg = await res.json() || {};
+    document.getElementById('cp-teste-horas').value = cfg.testeHoras ?? 48;
+    document.getElementById('cp-mensalidade').value = cfg.mensalidadeValor ?? 19.90;
+    document.getElementById('cp-comissao-percentual').value = cfg.comissaoPercentual ?? 40;
+    document.getElementById('cp-mensagem-comissao').value = cfg.mensagemComissao || '';
+    document.getElementById('overlay-config-plataforma').classList.add('open');
+  }
+  function fecharConfigPlataforma() {
+    document.getElementById('overlay-config-plataforma').classList.remove('open');
+  }
+  async function salvarConfigPlataforma() {
+    const testeHoras = parseFloat(document.getElementById('cp-teste-horas').value) || 48;
+    const mensalidadeValor = parseFloat(document.getElementById('cp-mensalidade').value) || 19.90;
+    const comissaoPercentual = parseFloat(document.getElementById('cp-comissao-percentual').value) || 40;
+    const mensagemComissao = document.getElementById('cp-mensagem-comissao').value.trim();
+    await fetch(`${FIREBASE_DB}/configPlataforma.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ testeHoras, mensalidadeValor, comissaoPercentual, mensagemComissao })
+    });
+    fecharConfigPlataforma();
+    alert('Configurações da plataforma salvas!');
+  }
+
+  // ---- Revendedores (master) ----
+  async function abrirRevendedores() {
+    const [revRes, comRes] = await Promise.all([
+      fetch(`${FIREBASE_DB}/revendedores.json`),
+      fetch(`${FIREBASE_DB}/comissoes.json`)
+    ]);
+    const revendedoresData = await revRes.json() || {};
+    const comissoesData = await comRes.json() || {};
+    const listaRevendedores = Object.entries(revendedoresData).map(([id, r]) => ({ id, ...r }));
+    const listaComissoes = Object.entries(comissoesData).map(([id, c]) => ({ id, ...c }));
+
+    const container = document.getElementById('lista-revendedores-master');
+    container.innerHTML = listaRevendedores.map(rev => {
+      const indicados = listaRevendedores.filter(r => r.indicadoPor === rev.id);
+      const comissoesDele = listaComissoes.filter(c => c.revendedorId === rev.id);
+      const pendente = comissoesDele.filter(c => c.status === 'pendente').reduce((s, c) => s + c.valor, 0);
+      const statusAssinatura = rev.assinaturaStatus || 'teste';
+      const corStatus = statusAssinatura === 'ativa' ? 'var(--ok)' : statusAssinatura === 'teste' ? '#60A5FA' : 'var(--danger)';
+
+      return `
+        <div class="lista-item" style="flex-direction:column; align-items:stretch; padding:14px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:600;">${rev.nome} <span style="font-size:11px; color:${corStatus}; font-weight:500;">● ${statusAssinatura}</span></div>
+              <div style="font-size:12px; color:var(--text-muted);">${rev.email} · ${indicados.length} indicado(s)</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12px; color:var(--text-muted);">Comissão pendente</div>
+              <div class="mono" style="color:var(--ok); font-weight:600;">R$ ${pendente.toFixed(2)}</div>
+            </div>
+          </div>
+          ${pendente > 0 ? `<button class="btn" style="margin-top:8px; padding:8px 12px; font-size:12px;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${pendente})">💵 Pagar tudo</button>` : ''}
+        </div>
+      `;
+    }).join('') || '<div style="color:var(--text-muted); font-size:13px;">Nenhum revendedor ainda.</div>';
+
+    document.getElementById('overlay-revendedores').classList.add('open');
+  }
+  function fecharRevendedores() {
+    document.getElementById('overlay-revendedores').classList.remove('open');
+  }
+
+  function abrirPagarComissao(revendedorId, nome, valorTotal) {
+    document.getElementById('pagar-revendedor-id').value = revendedorId;
+    document.getElementById('pagar-codigo-pix').value = '';
+    document.getElementById('pagar-resumo').innerHTML = `Marcar <b>R$ ${valorTotal.toFixed(2)}</b> em comissões pendentes de <b>${nome}</b> como pago.`;
+    document.getElementById('overlay-pagar-comissao').classList.add('open');
+  }
+  function fecharPagarComissao() {
+    document.getElementById('overlay-pagar-comissao').classList.remove('open');
+  }
+  async function confirmarPagarComissao() {
+    const revendedorId = document.getElementById('pagar-revendedor-id').value;
+    const codigoPix = document.getElementById('pagar-codigo-pix').value.trim();
+
+    const res = await fetch(`${FIREBASE_DB}/comissoes.json`);
+    const data = await res.json() || {};
+    const pendentes = Object.entries(data).filter(([, c]) => c.revendedorId === revendedorId && c.status === 'pendente');
+
+    await Promise.all(pendentes.map(([id]) =>
+      fetch(`${FIREBASE_DB}/comissoes/${id}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'pago', dataPagamento: Date.now(), codigoPix: codigoPix || null })
+      })
+    ));
+
+    fecharPagarComissao();
+    await abrirRevendedores();
+    alert(`✅ ${pendentes.length} comissão(ões) marcada(s) como paga(s)!`);
+  }
+
   // ---- Financeiro ----
   let financeiroRegistros = [];
   function caminhoFinanceiro() {
@@ -1766,6 +1990,7 @@
     const res = await fetch(`${caminhoConfig()}.json`);
     const config = await res.json() || {};
     document.getElementById('cfg-whatsapp').value = config.whatsappSuporte || '';
+    document.getElementById('cfg-pix').value = config.chavePix || '';
     document.getElementById('overlay-configuracoes').classList.add('open');
   }
   function fecharConfiguracoes() {
@@ -1774,9 +1999,10 @@
   async function salvarConfiguracoes() {
     const whatsapp = document.getElementById('cfg-whatsapp').value.replace(/\D/g, '');
     if (!whatsapp) { alert('Preenche o número.'); return; }
+    const chavePix = document.getElementById('cfg-pix').value.trim();
     await fetch(`${caminhoConfig()}.json`, {
       method: 'PATCH',
-      body: JSON.stringify({ whatsappSuporte: whatsapp })
+      body: JSON.stringify({ whatsappSuporte: whatsapp, chavePix })
     });
     fecharConfiguracoes();
     alert('Configurações salvas!');
@@ -1915,6 +2141,7 @@
   }
 
   async function excluirCliente(id) {
+    if (!acessoLiberado) { alert('Seu período de teste terminou. Assine pra voltar a gerenciar clientes.'); return; }
     if (!confirm('Excluir esse cliente?')) return;
     await fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
     await carregarClientes();
