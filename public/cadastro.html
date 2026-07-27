@@ -3,79 +3,687 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cadastro — Painel de Revenda</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Painel de Revenda</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
   :root {
-    --bg: #0B0F14; --surface: #131A22; --border: #232C37;
+    --bg: #0B0F14; --surface: #131A22; --surface-2: #1B232D; --border: #232C37;
     --text: #E6EDF3; --text-muted: #7C8798;
-    --ok: #34D399; --danger: #F87171;
+    --ok: #34D399; --warn: #FBBF24; --danger: #F87171;
+    --ok-bg: rgba(52,211,153,0.12); --warn-bg: rgba(251,191,36,0.12); --danger-bg: rgba(248,113,113,0.12);
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font-family: 'Inter', sans-serif;
-    display: flex; align-items: center; justify-content: center;
-    min-height: 100vh; padding: 20px;
+  body { margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3 { font-family:'Space Grotesk',sans-serif; }
+  .mono { font-family:'JetBrains Mono',monospace; }
+
+  header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  header h1 { font-size:20px; margin:0; display:flex; align-items:center; gap:8px; }
+  .signal-dot { width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .header-info { font-size:12px; color:var(--text-muted); }
+
+  .btn { font-family:'Inter',sans-serif; font-weight:500; font-size:14px; padding:10px 16px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); cursor:pointer; }
+  .btn:hover { border-color:#38424F; }
+  .btn-primary { background:var(--ok); color:#06231A; border-color:var(--ok); font-weight:600; }
+  .btn-primary:hover { background:#3FE0AA; }
+
+  main { padding:24px; max-width:1100px; margin:0 auto; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; transition:border-color .15s ease, transform .1s ease; }
+  .stat-card:hover { border-color:#38424F; transform:translateY(-1px); }
+  .stat-card.card-active { border-color:var(--ok); box-shadow:0 0 0 1px var(--ok); }
+  .stat-card .label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+  .stat-card .value { font-size:28px; font-weight:600; }
+  .stat-card.ok .value { color:var(--ok); }
+  .stat-card.warn .value { color:var(--warn); }
+  .stat-card.danger .value { color:var(--danger); }
+
+  .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  input[type=text], input[type=date], input[type=email] {
+    background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 12px;
+    color:var(--text); font-family:'Inter',sans-serif; font-size:14px;
   }
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 16px; padding: 32px; max-width: 380px; width: 100%;
+  #busca { flex:1; min-width:180px; }
+
+  table { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  thead th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); padding:12px 14px; border-bottom:1px solid var(--border); font-weight:500; }
+  tbody td { padding:12px 14px; border-bottom:1px solid var(--border); font-size:14px; }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--surface-2); }
+
+  .badge { font-size:12px; padding:3px 9px; border-radius:100px; font-weight:500; }
+  .badge.ativo { background:var(--ok-bg); color:var(--ok); }
+  .badge.inativo { background:var(--surface-2); color:var(--text-muted); }
+
+  .actions { display:flex; gap:6px; }
+  .icon-btn { width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .icon-btn:hover { color:var(--text); border-color:#38424F; }
+  .icon-btn.del:hover { color:var(--danger); border-color:var(--danger); }
+
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px; width:100%; max-width:420px; max-height:88vh; overflow-y:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; }
+  .modal-header h2 { margin:0; font-size:18px; }
+  .modal-close-x { background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; padding:2px 6px; border-radius:6px; }
+  .modal-close-x:hover { color:var(--text); background:var(--surface-2); }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+  .field input { width:100%; }
+  .modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+
+  .empty-state { text-align:center; padding:50px 20px; color:var(--text-muted); }
+  .loading { text-align:center; padding:60px; color:var(--text-muted); }
+
+  .lista-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; }
+  .lista-item:last-child { border-bottom:none; }
+  .del-mini { background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; }
+
+  .app-checklist { display:flex; flex-direction:column; gap:6px; max-height:160px; overflow-y:auto; }
+  .app-checklist-item { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; font-size:13px; cursor:pointer; }
+  .app-checklist-item input[type=checkbox] { flex-shrink:0; width:16px; height:16px; accent-color:var(--ok); }
+  .app-checklist-item .app-codigo { color:var(--text-muted); font-size:12px; margin-left:auto; }
+
+  .horas-chip.active { background:var(--ok); color:#06231A; border-color:var(--ok); font-weight:600; }
+  .dia-chip.active, .base-chip.active { background:var(--ok); color:#06231A; border-color:var(--ok); font-weight:600; }
+
+  @media (max-width:720px) {
+    table, thead { display:none; }
+    tbody, tr, td { display:block; width:100%; }
+    tbody tr { border-bottom:1px solid var(--border); padding:14px 16px; }
+    tbody td { border:none; padding:4px 0; display:flex; justify-content:space-between; }
+    tbody td::before { content: attr(data-label); color:var(--text-muted); font-size:12px; }
   }
-  h1 {
-    font-family: 'Space Grotesk', sans-serif; font-size: 22px;
-    margin: 0 0 4px; display: flex; align-items: center; gap: 8px;
-  }
-  .signal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
-  .indicado-por {
-    background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.35);
-    border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--ok);
-    margin-bottom: 20px; display: none;
-  }
-  .field { margin-bottom: 14px; }
-  .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-  .field input {
-    width: 100%; background: #1B232D; border: 1px solid var(--border);
-    border-radius: 8px; padding: 11px 12px; color: var(--text);
-    font-family: 'Inter', sans-serif; font-size: 14px; box-sizing: border-box;
-  }
-  button {
-    width: 100%; margin-top: 8px; padding: 13px; border-radius: 10px;
-    border: none; background: var(--ok); color: #06231A;
-    font-weight: 600; font-size: 14px; cursor: pointer;
-  }
-  button:disabled { opacity: 0.6; cursor: default; }
-  .erro { color: var(--danger); font-size: 13px; margin-top: 12px; display: none; }
-  .login-link { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 16px; }
-  .login-link a { color: var(--ok); }
 </style>
 </head>
 <body>
 
-<div class="card">
-  <h1><span class="signal-dot"></span> Criar conta</h1>
-  <div class="sub">Cadastra sua conta de revendedor</div>
-  <div class="indicado-por" id="indicado-por-aviso"></div>
+<div id="tela-carregando" class="loading">Carregando...</div>
 
-  <div class="field">
-    <label>Seu nome</label>
-    <input type="text" id="input-nome" placeholder="Nome completo">
-  </div>
-  <div class="field">
-    <label>E-mail</label>
-    <input type="email" id="input-email" placeholder="seuemail@exemplo.com">
-  </div>
-  <div class="field">
-    <label>Senha (mínimo 6 caracteres)</label>
-    <input type="password" id="input-senha" placeholder="••••••••">
+<div id="tela-painel" style="display:none;">
+  <header>
+    <h1><span class="signal-dot"></span> Painel de Revenda</h1>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span class="header-info" id="email-usuario"></span>
+      <button class="btn" onclick="abrirMenu()" style="font-size:18px; padding:8px 14px;">☰</button>
+      <button class="btn" onclick="sair()">Sair</button>
+    </div>
+  </header>
+
+  <div class="overlay" id="overlay-menu">
+    <div class="modal" style="max-width:340px;">
+      <div class="modal-header"><h2>Menu</h2><button class="modal-close-x" onclick="fecharMenu()">✕</button></div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirTrocarDominio();">🔗 Trocar domínio M3U em massa</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirImportar();">📥 Importar clientes</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirPersonalizacao();">🎨 Personalização</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirAplicativos();">📲 Aplicativos</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirRemarketing();">📣 Remarketing</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirNotificacoes();">🔔 Notificações</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirFinanceiro();">💰 Financeiro</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
+        <button class="btn" id="btn-menu-revendedores" style="display:none; text-align:left;" onclick="fecharMenu(); abrirRevendedores();">👥 Revendedores</button>
+        <button class="btn" id="btn-menu-comissionamento" style="display:none; text-align:left;" onclick="fecharMenu(); abrirComissionamento();">💰 Comissionamento</button>
+        <button class="btn" id="btn-menu-config-plataforma" style="display:none; text-align:left;" onclick="fecharMenu(); abrirConfigPlataforma();">🔧 Configurações da Plataforma</button>
+        <button class="btn" id="btn-criar-revendedor" style="display:none; text-align:left; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="fecharMenu(); abrirCriarRevendedor();">👑 Criar revendedor</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="fecharMenu()">Fechar</button>
+      </div>
+    </div>
   </div>
 
-  <button id="btn-criar" onclick="criarConta()">Criar minha conta</button>
-  <div class="erro" id="erro-cadastro"></div>
-  <div class="login-link">Já tem conta? <a href="/login.html">Entrar</a></div>
+  <main>
+    <div class="stats">
+      <div class="stat-card" id="card-todos" onclick="filtrar('todos')" style="cursor:pointer;">
+        <div class="label">Total de clientes</div>
+        <div class="value mono" id="stat-total">0</div>
+      </div>
+      <div class="stat-card ok" id="card-ativo" onclick="filtrar('ativo')" style="cursor:pointer;">
+        <div class="label">Ativos</div>
+        <div class="value mono" id="stat-ativos">0</div>
+      </div>
+      <div class="stat-card warn" id="card-3dias" onclick="filtrar('3dias')" style="cursor:pointer;">
+        <div class="label">Vencendo em 3 dias</div>
+        <div class="value mono" id="stat-3dias">0</div>
+      </div>
+      <div class="stat-card danger" id="card-hoje" onclick="filtrar('hoje')" style="cursor:pointer;">
+        <div class="label">Vencendo hoje</div>
+        <div class="value mono" id="stat-hoje">0</div>
+      </div>
+      <div class="stat-card danger" id="card-vencido" onclick="filtrar('vencido')" style="cursor:pointer;">
+        <div class="label">Vencidos</div>
+        <div class="value mono" id="stat-vencidos">0</div>
+      </div>
+    </div>
+
+    <div id="banner-acesso" style="display:none; border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:13px;"></div>
+
+    <div class="overlay" id="overlay-pix-mensalidade">
+      <div class="modal">
+        <div class="modal-header"><h2>🔑 Pagar com PIX</h2><button class="modal-close-x" onclick="fecharPixMensalidade()">✕</button></div>
+        <div id="pix-conteudo" style="text-align:center;">
+          <div class="loading">Gerando o PIX...</div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="fecharPixMensalidade()">Fechar</button>
+          <button class="btn btn-primary" onclick="verificarPagamentoPix()">🔄 Já paguei, verificar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;">
+      <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">🔗 Seu link de indicação — quem se cadastrar por ele vira seu indicado</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="link-indicacao" readonly style="flex:1; min-width:200px; font-family:'JetBrains Mono',monospace; font-size:12px;">
+        <button class="btn" onclick="copiarLinkIndicacao()">Copiar</button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%; margin-bottom:16px; padding:13px;" onclick="abrirModal()">+ Novo cliente</button>
+
+    <div class="toolbar">
+      <input type="text" id="busca" placeholder="Buscar por nome ou telefone..." oninput="renderizar()">
+      <select id="filtro-dias-vencido" style="background:var(--surface); border:1px solid var(--border); border-radius:100px; color:var(--text); font-size:13px; padding:7px 10px;">
+        <option value="30">+30 dias</option>
+        <option value="60">+60 dias</option>
+        <option value="90">+90 dias</option>
+        <option value="180" selected>+180 dias</option>
+        <option value="360">+360 dias</option>
+      </select>
+      <button class="btn" onclick="selecionarVencidosPorDias()">Selecionar vencidos</button>
+    </div>
+
+    <div id="barra-selecao" style="display:none; align-items:center; justify-content:space-between; background:var(--danger-bg); border:1px solid var(--danger); border-radius:10px; padding:12px 16px; margin-bottom:14px;">
+      <span id="texto-selecao" style="font-size:14px; font-weight:600; color:var(--danger);">0 selecionado(s)</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" onclick="limparSelecao()">Cancelar</button>
+        <button class="btn" style="background:var(--danger); border-color:var(--danger); color:#fff;" onclick="excluirSelecionados()">🗑️ Excluir selecionados</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="chk-selecionar-todos" onchange="toggleSelecionarTodos()"></th>
+          <th>Cliente</th>
+          <th>Usuário</th>
+          <th>Servidor</th>
+          <th>Vencimento</th>
+          <th>Plano</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-clientes"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state" style="display:none;">Nenhum cliente cadastrado ainda.</div>
+
+    <h2 style="margin-top:32px; font-size:16px;">👥 Meus indicados</h2>
+    <div id="banner-mensagem-comissao" style="display:none; font-size:12px; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin:8px 0 4px;"></div>
+    <table style="margin-top:10px;">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Data</th>
+          <th>Comissão</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-indicados"></tbody>
+    </table>
+    <div class="empty-state" id="empty-indicados" style="display:none;">Você ainda não indicou ninguém.</div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay-servidores">
+  <div class="modal">
+    <div class="modal-header"><h2>🖥️ Servidores</h2><button class="modal-close-x" onclick="fecharServidores()">✕</button></div>
+    <input type="hidden" id="editando-servidor-id">
+    <div class="field">
+      <label>Novo servidor</label>
+      <input type="text" id="novo-servidor-nome" placeholder="Nome do servidor">
+    </div>
+    <div class="field">
+      <label>Domínio do link M3U (opcional — auto-detecta o servidor ao colar o link)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="novo-servidor-dominio" placeholder="Ex: invictos.sbs" style="flex:1;">
+        <button class="btn btn-primary" id="btn-salvar-servidor" onclick="adicionarServidor()">Adicionar</button>
+      </div>
+    </div>
+    <div id="lista-servidores" style="margin-top:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharServidores()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-notificacoes">
+  <div class="modal">
+    <div class="modal-header"><h2>🔔 Notificações</h2><button class="modal-close-x" onclick="fecharNotificacoes()">✕</button></div>
+    <div class="stats" style="grid-template-columns: 1fr 1fr; margin-bottom:18px;">
+      <div class="stat-card ok"><div class="label">Ativaram</div><div class="value mono" id="notif-ativos">0</div></div>
+      <div class="stat-card danger"><div class="label">Não ativaram</div><div class="value mono" id="notif-inativos">0</div></div>
+    </div>
+    <div id="lista-notificacoes" style="max-height:300px; overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharNotificacoes()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-trocar-dominio">
+  <div class="modal">
+    <div class="modal-header"><h2>🔗 Trocar domínio M3U em massa</h2><button class="modal-close-x" onclick="fecharTrocarDominio()">✕</button></div>
+    <div class="field"><label>Domínio atual</label><input type="text" id="td-dominio-antigo" placeholder="invictos.sbs"></div>
+    <div class="field"><label>Domínio novo</label><input type="text" id="td-dominio-novo" placeholder="invictos2.sbs"></div>
+    <button class="btn" style="width:100%;" onclick="analisarTrocaDominio()">Analisar</button>
+    <div id="td-resumo" style="margin-top:14px; font-size:13px; color:var(--text-muted);"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharTrocarDominio()">Fechar</button>
+      <button class="btn btn-primary" id="btn-aplicar-troca-dominio" style="display:none;" onclick="aplicarTrocaDominio()">Aplicar troca</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-ativar-oficial">
+  <div class="modal">
+    <div class="modal-header"><h2>Ativar como cliente oficial</h2><button class="modal-close-x" onclick="fecharAtivarOficial()">✕</button></div>
+    <input type="hidden" id="oficial-cliente-id">
+    <div class="field"><label>Valor do plano (R$)</label><input type="text" id="oficial-valor" placeholder="45.00"></div>
+    <div class="field">
+      <label>Vencimento</label>
+      <div style="display:flex; gap:8px;">
+        <input type="date" id="oficial-vencimento" style="flex:1;">
+        <button class="btn" type="button" id="btn-buscar-vencimento-oficial" style="display:none;" onclick="buscarVencimentoOficial()">📡 Buscar</button>
+      </div>
+      <div id="oficial-vencimento-status" style="font-size:12px; margin-top:6px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharAtivarOficial()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAtivarOficial()">Ativar como oficial</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-importar">
+  <div class="modal wide" style="max-width:560px;">
+    <div class="modal-header"><h2>📥 Importar clientes (CSV)</h2><button class="modal-close-x" onclick="fecharImportar()">✕</button></div>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Colunas esperadas: Nome,WhatsApp,Usuario,Senha,Servidor,Valor,Vencimento(DD/MM/AAAA)</p>
+    <div class="field"><label>Arquivo CSV</label><input type="file" id="importar-arquivo" accept=".csv" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text);"></div>
+    <button class="btn" style="width:100%;" onclick="prepararImportacao()">Analisar arquivo</button>
+    <div id="importar-resumo" style="margin-top:16px;"></div>
+    <div id="importar-progresso" style="margin-top:12px; font-size:13px; color:var(--text-muted);"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharImportar()">Fechar</button>
+      <button class="btn btn-primary" id="btn-confirmar-importacao" style="display:none;" onclick="confirmarImportacao()">Confirmar importação</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-remarketing">
+  <div class="modal wide" style="max-width:560px;">
+    <div class="modal-header"><h2>📣 Remarketing</h2><button class="modal-close-x" onclick="fecharRemarketing()">✕</button></div>
+    <div class="field">
+      <label>Filtrar por status</label>
+      <select id="remkt-status">
+        <option value="todos">Todos os clientes</option>
+        <option value="ativo">Ativos</option>
+        <option value="3dias">Vencendo em 3 dias</option>
+        <option value="hoje">Vencendo hoje</option>
+        <option value="vencido">Vencidos</option>
+      </select>
+    </div>
+    <div class="field"><div id="remkt-contagem" style="font-size:13px; color:var(--ok); font-weight:600;">0 cliente(s) selecionado(s)</div></div>
+    <div class="field"><label>Assunto (só e-mail)</label><input type="text" id="remkt-assunto" placeholder="Oferta especial pra você"></div>
+    <div class="field">
+      <label>Mensagem</label>
+      <textarea id="remkt-mensagem" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea>
+    </div>
+    <div class="modal-actions" style="flex-wrap:wrap;">
+      <button class="btn" onclick="fecharRemarketing()">Fechar</button>
+      <button class="btn" onclick="verLinksWhatsappMassa()">💬 Links WhatsApp</button>
+      <button class="btn" onclick="enviarPushMassa()">🔔 Push em massa</button>
+      <button class="btn btn-primary" onclick="enviarEmailMassa()">✉️ E-mail em massa</button>
+    </div>
+    <div id="remkt-links-whats" style="margin-top:14px; max-height:200px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-financeiro">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>💰 Financeiro</h2><button class="modal-close-x" onclick="fecharFinanceiro()">✕</button></div>
+    <div class="field">
+      <label>Mês</label>
+      <select id="fin-filtro-mes"><option value="todos">Todos os meses</option></select>
+    </div>
+    <div class="stats" style="grid-template-columns: 1fr 1fr; margin-bottom:18px;">
+      <div class="stat-card ok">
+        <div class="label">Total no período</div>
+        <div class="value mono" id="fin-total" style="font-size:22px;">R$ 0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Lançamentos</div>
+        <div class="value mono" id="fin-qtd" style="font-size:22px;">0</div>
+      </div>
+    </div>
+    <div id="lista-financeiro" style="max-height:300px; overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharFinanceiro()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-mensagens">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>✉️ Mensagens</h2><button class="modal-close-x" onclick="fecharMensagens()">✕</button></div>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Clique numa variável pra inserir no texto onde o cursor estiver: {nome} {data_vencimento} {valor_plano} {servidor} {dias_restantes} {link}</p>
+    <div style="background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.35); border-radius:8px; padding:10px 12px; font-size:12px; color:#60A5FA; margin-bottom:16px;">
+      ℹ️ Essas são as mensagens <b>padrão</b> — já funcionam sozinhas. Edite à vontade se quiser personalizar.
+    </div>
+
+    <div class="field"><label>7 dias antes</label><textarea id="tpl-msg7dias" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>3 dias antes</label><textarea id="tpl-msg3dias" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>No dia do vencimento</label><textarea id="tpl-msgVencimento" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Vencido (cobrança)</label><textarea id="tpl-msgVencido" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Push manual (botão 🔔)</label><textarea id="tpl-msgManual" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Assunto do e-mail</label><input type="text" id="tpl-emailAssunto"></div>
+    <div class="field"><label>Corpo do e-mail</label><textarea id="tpl-emailCorpo" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharMensagens()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarMensagens()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-personalizacao">
+  <div class="modal">
+    <div class="modal-header"><h2>🎨 Personalização</h2><button class="modal-close-x" onclick="fecharPersonalizacao()">✕</button></div>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Isso muda como o cliente vê a página /meu-plano.html</p>
+    <div class="field"><label>Nome da marca</label><input type="text" id="pz-nome" placeholder="Fênix Play"></div>
+    <div class="field"><label>URL do logo (opcional)</label><input type="text" id="pz-logo" placeholder="https://exemplo.com/logo.png"></div>
+    <div class="field"><label>Cor principal</label><input type="color" id="pz-cor" value="#34D399" style="width:100%; height:44px; padding:4px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px;"></div>
+    <div class="field"><label>Texto do botão de notificação</label><input type="text" id="pz-texto-notif" placeholder="Ativar notificações"></div>
+    <div class="field"><label>Texto do botão de suporte</label><input type="text" id="pz-texto-suporte" placeholder="💬 Falar com o suporte"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharPersonalizacao()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPersonalizacao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-configuracoes">
+  <div class="modal">
+    <div class="modal-header"><h2>⚙️ Configurações</h2><button class="modal-close-x" onclick="fecharConfiguracoes()">✕</button></div>
+    <div class="field">
+      <label>Seu WhatsApp (com DDI, só números)</label>
+      <input type="text" id="cfg-whatsapp" placeholder="5521999999999">
+      <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Vai ser usado como botão de suporte na página do cliente (quando construirmos ela).</div>
+    </div>
+    <div class="field">
+      <label>Sua chave PIX (pra receber comissão de indicação)</label>
+      <input type="text" id="cfg-pix" placeholder="CPF, e-mail, telefone ou chave aleatória">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharConfiguracoes()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConfiguracoes()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-renovar">
+  <div class="modal">
+    <div class="modal-header"><h2>Renovar cliente</h2><button class="modal-close-x" onclick="fecharRenovacao()">✕</button></div>
+    <input type="hidden" id="renovar-cliente-id">
+
+    <div id="renovar-sync-bloco" style="display:none; margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--border);">
+      <button class="btn" style="width:100%; background:var(--ok); border-color:var(--ok); color:#06231A; font-weight:600;" onclick="sincronizarRenovacao()">
+        📡 Sincronizar com servidor (puxa a data real de lá)
+      </button>
+      <div style="text-align:center; font-size:12px; color:var(--text-muted); margin:10px 0;">ou renove manualmente abaixo</div>
+    </div>
+
+    <div class="field">
+      <label>Renovar por quantos dias?</label>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button type="button" class="btn dia-chip" data-dias="15" onclick="setDiasRenovacao(15)" style="padding:6px 12px; font-size:12px;">+15</button>
+        <button type="button" class="btn dia-chip active" data-dias="30" onclick="setDiasRenovacao(30)" style="padding:6px 12px; font-size:12px;">+30</button>
+        <button type="button" class="btn dia-chip" data-dias="60" onclick="setDiasRenovacao(60)" style="padding:6px 12px; font-size:12px;">+60</button>
+        <button type="button" class="btn dia-chip" data-dias="90" onclick="setDiasRenovacao(90)" style="padding:6px 12px; font-size:12px;">+90</button>
+        <button type="button" class="btn dia-chip" data-dias="180" onclick="setDiasRenovacao(180)" style="padding:6px 12px; font-size:12px;">+180</button>
+        <button type="button" class="btn dia-chip" data-dias="360" onclick="setDiasRenovacao(360)" style="padding:6px 12px; font-size:12px;">+360</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Base da renovação</label>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn base-chip active" id="base-vencimento" onclick="setBaseRenovacao('vencimento')" style="padding:8px 12px; font-size:12px;">A partir do vencimento atual</button>
+        <button type="button" class="btn base-chip" id="base-hoje" onclick="setBaseRenovacao('hoje')" style="padding:8px 12px; font-size:12px;">A partir de hoje</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Ou escolha uma data exata (opcional)</label>
+      <input type="date" id="renovar-data-manual">
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label>Novo vencimento</label>
+      <div class="mono" id="preview-vencimento" style="font-size:16px; color:var(--ok);">—</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharRenovacao()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarRenovacao()">Renovar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-aplicativos">
+  <div class="modal">
+    <div class="modal-header"><h2>📲 Aplicativos</h2><button class="modal-close-x" onclick="fecharAplicativos()">✕</button></div>
+    <input type="hidden" id="editando-app-id">
+    <div class="field">
+      <label>Nome do app</label>
+      <input type="text" id="novo-app-nome" placeholder="Ex: IBO Player">
+    </div>
+    <div class="field">
+      <label>Código de ativação</label>
+      <input type="text" id="novo-app-codigo" placeholder="Ex: 123456">
+    </div>
+    <div class="field">
+      <label>Servidores compatíveis</label>
+      <div id="novo-app-servidores-lista" class="app-checklist"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;" id="btn-salvar-app" onclick="adicionarAplicativo()">Adicionar</button>
+    <div id="lista-aplicativos" style="margin-top:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharAplicativos()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-config-plataforma">
+  <div class="modal">
+    <div class="modal-header"><h2>🔧 Configurações da Plataforma</h2><button class="modal-close-x" onclick="fecharConfigPlataforma()">✕</button></div>
+    <div class="field"><label>Horas de teste grátis pra revendedor novo</label><input type="text" id="cp-teste-horas" placeholder="48"></div>
+    <div class="field"><label>Valor da mensalidade (R$)</label><input type="text" id="cp-mensalidade" placeholder="19.90"></div>
+    <div class="field"><label>Percentual de comissão pra quem indica (%)</label><input type="text" id="cp-comissao-percentual" placeholder="40"></div>
+    <div class="field"><label>Dia do mês em que você paga as comissões</label><input type="text" id="cp-dia-pagamento" placeholder="20"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharConfigPlataforma()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConfigPlataforma()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-detalhe-revendedor">
+  <div class="modal">
+    <div class="modal-header"><h2>Dados do revendedor</h2><button class="modal-close-x" onclick="fecharDetalheRevendedor()">✕</button></div>
+    <input type="hidden" id="det-revendedor-id">
+    <div class="field"><label>Nome</label><input type="text" id="det-nome"></div>
+    <div class="field"><label>E-mail</label><input type="email" id="det-email"></div>
+    <div class="field">
+      <label>Status</label>
+      <div id="det-status-info" class="mono" style="font-size:13px; color:var(--text-muted);"></div>
+    </div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn" style="background:var(--danger); border-color:var(--danger); color:#fff;" onclick="excluirRevendedor()">🗑️ Excluir revendedor</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" onclick="fecharDetalheRevendedor()">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarDetalheRevendedor()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-comissionamento">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header"><h2>💰 Comissionamento</h2><button class="modal-close-x" onclick="fecharComissionamento()">✕</button></div>
+
+    <div id="alerta-ciclo-atrasado" style="display:none; background:rgba(248,113,113,0.12); border:1px solid var(--danger); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:13px; color:var(--danger); font-weight:600;"></div>
+
+    <div style="background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.35); border-radius:8px; padding:12px 14px; margin-bottom:14px;">
+      <div style="font-size:12px; color:var(--text-muted);" id="ciclo-comissionamento-label">Período vigente</div>
+      <div style="font-size:20px; font-weight:600; color:var(--ok);" id="ciclo-comissionamento-total">R$ 0,00</div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center;">
+      <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="usarCicloVigenteComissionamento()">📅 Voltar pro período vigente</button>
+      <input type="date" id="com-filtro-inicio" style="font-size:12px;">
+      <span style="color:var(--text-muted); font-size:12px;">até</span>
+      <input type="date" id="com-filtro-fim" style="font-size:12px;">
+      <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="renderizarComissionamento()">Filtrar</button>
+    </div>
+
+    <div id="lista-comissionamento" style="max-height:380px; overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharComissionamento()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-revendedores">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header"><h2>👥 Revendedores</h2><button class="modal-close-x" onclick="fecharRevendedores()">✕</button></div>
+    <div class="field">
+      <input type="text" id="busca-revendedores" placeholder="Buscar por nome ou e-mail..." oninput="renderizarListaRevendedoresMaster()">
+    </div>
+    <div style="background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.35); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:13px;">
+      <b style="color:var(--ok);">Total geral pendente: <span id="total-pendente-geral">R$ 0,00</span></b> — só de indicações de outros revendedores (as suas diretas não contam comissão)
+    </div>
+    <div id="lista-revendedores-master" style="max-height:400px; overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharRevendedores()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-pagar-comissao">
+  <div class="modal">
+    <div class="modal-header"><h2>Registrar pagamento</h2><button class="modal-close-x" onclick="fecharPagarComissao()">✕</button></div>
+    <input type="hidden" id="pagar-revendedor-id">
+    <div id="pagar-resumo" style="margin-bottom:16px; font-size:14px;"></div>
+    <div class="field"><label>Código da transação PIX (opcional)</label><input type="text" id="pagar-codigo-pix" placeholder="E00000000202..."></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharPagarComissao()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarPagarComissao()">Confirmar pagamento</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-criar-revendedor">
+  <div class="modal">
+    <div class="modal-header"><h2>👑 Criar revendedor</h2><button class="modal-close-x" onclick="fecharCriarRevendedor()">✕</button></div>
+    <div class="field">
+      <label>Nome</label>
+      <input type="text" id="rev-nome" placeholder="Nome do revendedor">
+    </div>
+    <div class="field">
+      <label>E-mail</label>
+      <input type="email" id="rev-email" placeholder="email@exemplo.com">
+    </div>
+    <div class="field">
+      <label>Senha (mínimo 6 caracteres)</label>
+      <input type="text" id="rev-senha" placeholder="senha123">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharCriarRevendedor()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarCriarRevendedor()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-header"><h2 id="modal-titulo">Novo cliente</h2><button class="modal-close-x" onclick="fecharModal()">✕</button></div>
+    <input type="hidden" id="cliente-id">
+
+    <div class="field" style="background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.35); border-radius:10px; padding:12px;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0;">
+        <input type="checkbox" id="f-teste" onchange="alternarModoTeste()" style="width:16px; height:16px; accent-color:#60A5FA;">
+        <span style="color:#60A5FA; font-weight:600;">🧪 Cliente de teste</span>
+      </label>
+      <div id="f-teste-horas-bloco" style="display:none; margin-top:10px;">
+        <label>Duração do teste</label>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button type="button" class="btn horas-chip" data-horas="1" onclick="setHorasTeste(1)" style="padding:6px 12px; font-size:12px;">1h</button>
+          <button type="button" class="btn horas-chip active" data-horas="2" onclick="setHorasTeste(2)" style="padding:6px 12px; font-size:12px;">2h</button>
+          <button type="button" class="btn horas-chip" data-horas="3" onclick="setHorasTeste(3)" style="padding:6px 12px; font-size:12px;">3h</button>
+          <button type="button" class="btn horas-chip" data-horas="4" onclick="setHorasTeste(4)" style="padding:6px 12px; font-size:12px;">4h</button>
+          <button type="button" class="btn horas-chip" data-horas="24" onclick="setHorasTeste(24)" style="padding:6px 12px; font-size:12px;">24h</button>
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">O valor do plano continua editável abaixo, pra o cliente já ver o preço.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Nome</label>
+      <input type="text" id="f-nome" placeholder="Nome do cliente">
+    </div>
+    <div class="field">
+      <label>Link M3U (opcional — preenche usuário/senha/vencimento/servidor sozinho)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="f-m3u" placeholder="http://painel.com/get.php?username=...&password=..." style="flex:1;">
+        <button class="btn" type="button" onclick="buscarDadosM3U()" style="white-space:nowrap;">🔍 Buscar</button>
+      </div>
+      <div id="m3u-status" style="font-size:12px; margin-top:6px;"></div>
+    </div>
+    <div class="field">
+      <label>WhatsApp (com DDI, só números)</label>
+      <input type="text" id="f-whatsapp" placeholder="5521999999999">
+    </div>
+    <div class="field">
+      <label>Usuário</label>
+      <input type="text" id="f-usuario" placeholder="usuario123">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="text" id="f-senha" placeholder="senha123">
+    </div>
+    <div class="field">
+      <label>Servidor</label>
+      <select id="f-servidor" onchange="preencherChecklistAplicativos(this.value, null)"></select>
+      <div style="margin-top:6px;">
+        <a href="javascript:void(0)" onclick="abrirServidores()" style="font-size:12px; color:var(--text-muted);">+ cadastrar novo servidor</a>
+      </div>
+    </div>
+    <div class="field">
+      <label>Aplicativos que o cliente usa</label>
+      <div id="f-aplicativos-lista" style="display:flex; flex-direction:column; gap:6px;">
+        <div style="color:var(--text-muted); font-size:12px;">Escolhe o servidor do cliente primeiro.</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Valor do plano (R$)</label>
+      <input type="text" id="f-valor" placeholder="45.00">
+    </div>
+    <div class="field" id="f-vencimento-bloco">
+      <label>Vencimento</label>
+      <input type="date" id="f-vencimento">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCliente()">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -92,79 +700,1774 @@
   const auth = firebase.auth();
   const FIREBASE_DB = firebaseConfig.databaseURL;
 
-  const params = new URLSearchParams(window.location.search);
-  const refUid = params.get('ref');
-  let nomeIndicador = '';
+  const MASTER_UID = 'G8SAyrR7fFcslRmSIBUosRwA6QF2';
+  let uidRevendedor = null;
+  let clientes = [];
+  let selecionados = new Set();
+  let filtroAtual = 'todos';
 
-  async function carregarIndicador() {
-    if (!refUid) return;
-    try {
-      const res = await fetch(`${FIREBASE_DB}/revendedores/${refUid}/nome.json`);
-      nomeIndicador = await res.json();
-      if (nomeIndicador) {
-        const aviso = document.getElementById('indicado-por-aviso');
-        aviso.textContent = `🎉 Você está entrando pelo convite de ${nomeIndicador}`;
-        aviso.style.display = 'block';
-      }
-    } catch (err) {}
+  function filtrar(tipo) {
+    filtroAtual = tipo;
+    document.querySelectorAll('.stat-card').forEach(el => el.classList.remove('card-active'));
+    const card = document.getElementById('card-' + tipo);
+    if (card) card.classList.add('card-active');
+    renderizar();
   }
-  carregarIndicador();
 
-  async function criarConta() {
-    const nome = document.getElementById('input-nome').value.trim();
-    const email = document.getElementById('input-email').value.trim();
-    const senha = document.getElementById('input-senha').value;
-    const erroEl = document.getElementById('erro-cadastro');
-    const btn = document.getElementById('btn-criar');
+  function toggleSelecao(id) {
+    if (selecionados.has(id)) selecionados.delete(id);
+    else selecionados.add(id);
+    atualizarBarraSelecao();
+  }
+  function toggleSelecionarTodos() {
+    const marcar = document.getElementById('chk-selecionar-todos').checked;
+    const idsVisiveis = Array.from(document.querySelectorAll('.chk-cliente')).map(el => el.value);
+    if (marcar) idsVisiveis.forEach(id => selecionados.add(id));
+    else idsVisiveis.forEach(id => selecionados.delete(id));
+    renderizar();
+  }
+  function limparSelecao() {
+    selecionados.clear();
+    document.getElementById('chk-selecionar-todos').checked = false;
+    renderizar();
+  }
+  function atualizarBarraSelecao() {
+    const barra = document.getElementById('barra-selecao');
+    if (selecionados.size > 0) {
+      barra.style.display = 'flex';
+      document.getElementById('texto-selecao').textContent = `${selecionados.size} selecionado(s)`;
+    } else {
+      barra.style.display = 'none';
+    }
+  }
+  async function excluirSelecionados() {
+    const ids = Array.from(selecionados);
+    if (ids.length === 0) return;
+    if (!confirm(`Excluir ${ids.length} cliente(s)? Isso não pode ser desfeito.`)) return;
+    await Promise.all(ids.map(id => fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' })));
+    selecionados.clear();
+    document.getElementById('chk-selecionar-todos').checked = false;
+    await carregarClientes();
+  }
+  function selecionarVencidosPorDias() {
+    const dias = parseInt(document.getElementById('filtro-dias-vencido').value, 10);
+    const alvo = clientes.filter(c => !c.emTeste && diasAte(c.vencimento) < -dias);
+    if (alvo.length === 0) { alert(`Nenhum cliente vencido há mais de ${dias} dias.`); return; }
+    alvo.forEach(c => selecionados.add(c.id));
+    renderizar();
+    alert(`${alvo.length} cliente(s) selecionado(s). Revise e clica em "Excluir selecionados".`);
+  }
 
-    erroEl.style.display = 'none';
-
-    if (!nome || !email || !senha) {
-      erroEl.textContent = 'Preenche todos os campos.';
-      erroEl.style.display = 'block';
+  auth.onAuthStateChanged((user) => {
+    if (!user) {
+      window.location.href = '/login.html';
       return;
     }
-    if (senha.length < 6) {
-      erroEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
-      erroEl.style.display = 'block';
-      return;
+    uidRevendedor = user.uid;
+    document.getElementById('email-usuario').textContent = user.email;
+    document.getElementById('tela-carregando').style.display = 'none';
+    document.getElementById('tela-painel').style.display = 'block';
+
+    document.getElementById('link-indicacao').value = `${window.location.origin}/cadastro.html?ref=${uidRevendedor}`;
+
+    carregarClientes();
+    carregarIndicados();
+    verificarAcesso();
+
+    if (uidRevendedor === MASTER_UID) {
+      document.getElementById('btn-criar-revendedor').style.display = 'inline-block';
+      document.getElementById('btn-menu-revendedores').style.display = 'block';
+      document.getElementById('btn-menu-comissionamento').style.display = 'block';
+      document.getElementById('btn-menu-config-plataforma').style.display = 'block';
+    }
+  });
+
+  let acessoLiberado = true;
+
+  async function verificarAcesso() {
+    if (uidRevendedor === MASTER_UID) return; // admin nunca é restrito
+
+    const res = await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`);
+    const meuCadastro = await res.json() || {};
+
+    const banner = document.getElementById('banner-acesso');
+    const status = meuCadastro.assinaturaStatus || 'teste';
+    const testeAte = meuCadastro.testeAte || 0;
+    const pagoAte = meuCadastro.pagoAte || 0;
+    const emTesteValido = status === 'teste' && testeAte > Date.now();
+    const mensalidadeEmDia = status === 'ativa' && pagoAte > Date.now();
+
+    if (mensalidadeEmDia) {
+      acessoLiberado = true;
+      const diasRestantes = Math.ceil((pagoAte - Date.now()) / (1000*60*60*24));
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(52,211,153,0.1)';
+      banner.style.borderColor = 'rgba(52,211,153,0.35)';
+      const avisoCancelada = meuCadastro.assinaturaCanceladaEm
+        ? ' (sua assinatura recorrente foi cancelada — depois desse período, você vai precisar pagar de novo pra continuar)'
+        : '';
+      banner.innerHTML = `<span style="color:var(--ok);">✅ Seu plano está ativo — faltam ${diasRestantes} dia(s) pra renovar.${avisoCancelada}</span>`;
+    } else if (emTesteValido) {
+      acessoLiberado = true;
+      const horasRestantes = Math.round((testeAte - Date.now()) / (1000*60*60));
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(96,165,250,0.12)';
+      banner.style.borderColor = 'rgba(96,165,250,0.4)';
+      banner.innerHTML = `<span style="color:#60A5FA;">🧪 Você está no período de teste — restam ${horasRestantes}h. </span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:#60A5FA; text-decoration:underline;">💳 Assinar com cartão</a> <span style="color:#60A5FA;">ou</span> <a href="javascript:void(0)" onclick="abrirPixMensalidade()" style="color:#60A5FA; text-decoration:underline;">🔑 Pagar com PIX este mês</a>`;
+    } else {
+      acessoLiberado = false;
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(248,113,113,0.12)';
+      banner.style.borderColor = 'rgba(248,113,113,0.4)';
+      const mensagem = status === 'ativa'
+        ? '🔒 Sua mensalidade venceu (passaram 30 dias do último pagamento). '
+        : '🔒 Seu período de teste terminou. ';
+      banner.innerHTML = `<span style="color:var(--danger);">${mensagem}</span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:var(--danger); text-decoration:underline; font-weight:600;">💳 Assinar com cartão</a> <span style="color:var(--danger);">ou</span> <a href="javascript:void(0)" onclick="abrirPixMensalidade()" style="color:var(--danger); text-decoration:underline; font-weight:600;">🔑 Pagar com PIX este mês</a>`;
+    }
+  }
+
+  async function iniciarAssinatura() {
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerar-assinatura', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      window.open(data.linkCheckout, '_blank');
+    } catch (err) {
+      alert('Erro ao gerar link de assinatura.');
+    }
+  }
+
+  async function abrirPixMensalidade() {
+    document.getElementById('pix-conteudo').innerHTML = '<div class="loading">Gerando o PIX...</div>';
+    document.getElementById('overlay-pix-mensalidade').classList.add('open');
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerar-pix-mensalidade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }
+      });
+      const data = await res.json();
+      if (data.erro) {
+        document.getElementById('pix-conteudo').innerHTML = `<div style="color:var(--danger);">❌ ${data.erro}</div>`;
+        return;
+      }
+      document.getElementById('pix-conteudo').innerHTML = `
+        <img src="data:image/png;base64,${data.qrCodeBase64}" style="width:200px; height:200px; border-radius:8px; margin-bottom:12px;">
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">Escaneia com o app do seu banco, ou copia o código abaixo:</div>
+        <div style="display:flex; gap:6px;">
+          <input type="text" readonly value="${data.qrCodeTexto}" id="pix-codigo-texto" style="flex:1; font-size:11px;">
+          <button class="btn" style="padding:8px 12px; font-size:12px;" onclick="copiarCodigoPix()">Copiar</button>
+        </div>
+      `;
+    } catch (err) {
+      document.getElementById('pix-conteudo').innerHTML = '<div style="color:var(--danger);">❌ Erro ao gerar o PIX. Tenta de novo.</div>';
+    }
+  }
+  function fecharPixMensalidade() {
+    document.getElementById('overlay-pix-mensalidade').classList.remove('open');
+  }
+  function copiarCodigoPix() {
+    const input = document.getElementById('pix-codigo-texto');
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => alert('Código copiado!')).catch(() => {
+      document.execCommand('copy');
+      alert('Código copiado!');
+    });
+  }
+  async function verificarPagamentoPix() {
+    await verificarAcesso();
+    if (acessoLiberado) {
+      fecharPixMensalidade();
+      alert('✅ Pagamento confirmado!');
+    } else {
+      alert('Ainda não identificamos o pagamento. Se você já pagou, aguarda alguns segundos e tenta de novo — a confirmação é automática.');
+    }
+  }
+
+  function copiarLinkIndicacao() {
+    const input = document.getElementById('link-indicacao');
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => {
+      alert('Link copiado!');
+    }).catch(() => {
+      document.execCommand('copy');
+      alert('Link copiado!');
+    });
+  }
+
+  async function carregarIndicados() {
+    const [revRes, comRes, cfgRes] = await Promise.all([
+      fetch(`${FIREBASE_DB}/revendedores.json`),
+      fetch(`${FIREBASE_DB}/comissoes.json`),
+      fetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`)
+    ]);
+    const revData = await revRes.json() || {};
+    const comData = await comRes.json() || {};
+    const diaPagamento = await cfgRes.json();
+
+    const bannerMsg = document.getElementById('banner-mensagem-comissao');
+    if (diaPagamento) {
+      bannerMsg.textContent = `ℹ️ Comissões são pagas todo dia ${diaPagamento} de cada mês.`;
+      bannerMsg.style.display = 'block';
+    } else {
+      bannerMsg.style.display = 'none';
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Criando...';
+    const meusIndicados = Object.entries(revData)
+      .filter(([, r]) => r.indicadoPor === uidRevendedor)
+      .map(([id, r]) => ({ id, ...r }));
+    const todasComissoes = Object.entries(comData).map(([id, c]) => ({ id, ...c }));
+
+    const tbody = document.getElementById('tabela-indicados');
+    const empty = document.getElementById('empty-indicados');
+
+    if (meusIndicados.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    const mesAtual = chaveMes(Date.now());
+
+    tbody.innerHTML = meusIndicados.map(rev => {
+      const comissaoDoMes = todasComissoes.find(c => c.indicadoId === rev.id && c.mesReferencia === mesAtual);
+      const statusAssinatura = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa' : (rev.assinaturaStatus === 'teste' ? 'teste' : 'vencida');
+      let statusHtml;
+      if (statusAssinatura === 'ativa' && comissaoDoMes) {
+        statusHtml = `<span class="badge ${comissaoDoMes.status === 'pago' ? 'ativo' : 'inativo'}">mensalidade paga · comissão ${comissaoDoMes.status}</span>`;
+      } else if (statusAssinatura === 'teste') {
+        statusHtml = `<span class="badge inativo">em teste</span>`;
+      } else {
+        statusHtml = `<span class="badge inativo">mensalidade pendente</span>`;
+      }
+      return `
+        <tr>
+          <td data-label="Nome">${rev.nome}</td>
+          <td data-label="Data" class="mono">${new Date(rev.criadoEm).toLocaleDateString('pt-BR')}</td>
+          <td data-label="Comissão" class="mono">${comissaoDoMes ? 'R$ ' + Number(comissaoDoMes.valor).toFixed(2) : '—'}</td>
+          <td data-label="Status">${statusHtml}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function abrirCriarRevendedor() {
+    document.getElementById('rev-nome').value = '';
+    document.getElementById('rev-email').value = '';
+    document.getElementById('rev-senha').value = '';
+    document.getElementById('overlay-criar-revendedor').classList.add('open');
+  }
+  function fecharCriarRevendedor() {
+    document.getElementById('overlay-criar-revendedor').classList.remove('open');
+  }
+  async function confirmarCriarRevendedor() {
+    const nome = document.getElementById('rev-nome').value.trim();
+    const email = document.getElementById('rev-email').value.trim();
+    const senha = document.getElementById('rev-senha').value;
+
+    if (!nome || !email || !senha) { alert('Preenche tudo.'); return; }
 
     try {
-      const cred = await auth.createUserWithEmailAndPassword(email, senha);
-      const uid = cred.user.uid;
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/criar-revendedor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ nome, email, senha })
+      });
+      const data = await res.json();
 
-      const testeHorasRes = await fetch(`${FIREBASE_DB}/configPlataforma/testeHoras.json`);
-      const testeHoras = (await testeHorasRes.json()) || 48;
+      if (data.erro) {
+        alert('Erro: ' + data.erro);
+        return;
+      }
 
-      await fetch(`${FIREBASE_DB}/revendedores/${uid}.json`, {
-        method: 'PUT',
+      fecharCriarRevendedor();
+      alert(`✅ Revendedor "${nome}" criado com sucesso!`);
+    } catch (err) {
+      alert('Erro ao criar revendedor.');
+    }
+  }
+
+  function sair() {
+    auth.signOut().then(() => { window.location.href = '/login.html'; });
+  }
+
+  function caminhoClientes() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/clientes`;
+  }
+
+  function diasAte(timestamp) {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const venc = new Date(timestamp); venc.setHours(0,0,0,0);
+    return Math.round((venc - hoje) / (1000*60*60*24));
+  }
+
+  function statusCalculado(c) {
+    return diasAte(c.vencimento) < 0 ? 'inativo' : 'ativo';
+  }
+
+  let servidores = [];
+  let aplicativos = [];
+
+  async function carregarClientes() {
+    const res = await fetch(`${caminhoClientes()}.json`);
+    const data = await res.json() || {};
+    clientes = Object.entries(data).map(([id, c]) => ({ id, ...c }));
+    await carregarServidores();
+    await carregarAplicativos();
+    atualizarStats();
+    renderizar();
+  }
+
+  function caminhoAplicativos() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/aplicativos`;
+  }
+
+  async function carregarAplicativos() {
+    const res = await fetch(`${caminhoAplicativos()}.json`);
+    const data = await res.json() || {};
+    aplicativos = Object.entries(data).map(([id, a]) => ({ id, ...a }));
+  }
+
+  function preencherChecklistAplicativos(servidorNome, selecionados) {
+    const container = document.getElementById('f-aplicativos-lista');
+    const appsDoServidor = servidorNome
+      ? aplicativos.filter(a => (a.servidores || []).includes(servidorNome))
+      : [];
+
+    if (!servidorNome) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Escolhe o servidor do cliente primeiro.</div>';
+      return;
+    }
+    if (appsDoServidor.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Nenhum aplicativo vinculado a esse servidor ainda.</div>';
+      return;
+    }
+
+    const idsMarcados = selecionados !== null && selecionados !== undefined ? selecionados : appsDoServidor.map(a => a.id);
+
+    container.className = 'app-checklist';
+    container.innerHTML = appsDoServidor.map(a => `
+      <label class="app-checklist-item">
+        <input type="checkbox" class="chk-app" value="${a.id}" ${idsMarcados.includes(a.id) ? 'checked' : ''}>
+        <span>${a.nome}</span>
+        <span class="mono app-codigo">${a.codigo}</span>
+      </label>
+    `).join('');
+  }
+
+  function abrirAplicativos() {
+    document.getElementById('editando-app-id').value = '';
+    document.getElementById('novo-app-nome').value = '';
+    document.getElementById('novo-app-codigo').value = '';
+    document.getElementById('btn-salvar-app').textContent = 'Adicionar';
+    preencherChecklistServidoresApp([]);
+    renderizarListaAplicativos();
+    document.getElementById('overlay-aplicativos').classList.add('open');
+  }
+  function fecharAplicativos() {
+    document.getElementById('overlay-aplicativos').classList.remove('open');
+  }
+  function preencherChecklistServidoresApp(marcados) {
+    const container = document.getElementById('novo-app-servidores-lista');
+    if (servidores.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Cadastra um servidor primeiro.</div>';
+      return;
+    }
+    container.innerHTML = servidores.map(s => `
+      <label class="app-checklist-item">
+        <input type="checkbox" class="chk-app-servidor" value="${s.nome}" ${marcados.includes(s.nome) ? 'checked' : ''}>
+        <span>${s.nome}</span>
+      </label>
+    `).join('');
+  }
+  function editarAplicativo(id) {
+    const app = aplicativos.find(a => a.id === id);
+    if (!app) return;
+    document.getElementById('editando-app-id').value = id;
+    document.getElementById('novo-app-nome').value = app.nome;
+    document.getElementById('novo-app-codigo').value = app.codigo;
+    preencherChecklistServidoresApp(app.servidores || []);
+    document.getElementById('btn-salvar-app').textContent = 'Salvar alteração';
+  }
+  function renderizarListaAplicativos() {
+    const container = document.getElementById('lista-aplicativos');
+    if (aplicativos.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhum aplicativo cadastrado ainda.</div>';
+      return;
+    }
+    container.innerHTML = aplicativos.map(a => `
+      <div class="lista-item">
+        <span>
+          ${a.nome} <span class="mono" style="color:var(--text-muted); font-size:12px;">(${a.codigo})</span>
+          <br>
+          <span style="font-size:11px; ${(a.servidores && a.servidores.length) ? 'color:var(--ok);' : 'color:var(--danger);'}">
+            ${(a.servidores && a.servidores.length) ? '🖥️ ' + a.servidores.join(', ') : '⚠️ sem servidor vinculado'}
+          </span>
+        </span>
+        <span style="display:flex; gap:10px;">
+          <button class="del-mini" style="color:var(--text-muted);" onclick="editarAplicativo('${a.id}')">editar</button>
+          <button class="del-mini" onclick="excluirAplicativo('${a.id}')">remover</button>
+        </span>
+      </div>
+    `).join('');
+  }
+  async function adicionarAplicativo() {
+    const idEditando = document.getElementById('editando-app-id').value;
+    const nome = document.getElementById('novo-app-nome').value.trim();
+    const codigo = document.getElementById('novo-app-codigo').value.trim();
+    const servidoresMarcados = Array.from(document.querySelectorAll('.chk-app-servidor:checked')).map(el => el.value);
+    if (!nome || !codigo) { alert('Preenche o nome e o código.'); return; }
+
+    if (idEditando) {
+      await fetch(`${caminhoAplicativos()}/${idEditando}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nome, codigo, servidores: servidoresMarcados })
+      });
+    } else {
+      await fetch(`${caminhoAplicativos()}.json`, {
+        method: 'POST',
+        body: JSON.stringify({ nome, codigo, servidores: servidoresMarcados })
+      });
+    }
+
+    document.getElementById('editando-app-id').value = '';
+    document.getElementById('novo-app-nome').value = '';
+    document.getElementById('novo-app-codigo').value = '';
+    document.getElementById('btn-salvar-app').textContent = 'Adicionar';
+    await carregarAplicativos();
+    renderizarListaAplicativos();
+  }
+  async function excluirAplicativo(id) {
+    if (!confirm('Remover esse aplicativo da lista?')) return;
+    await fetch(`${caminhoAplicativos()}/${id}.json`, { method: 'DELETE' });
+    await carregarAplicativos();
+    renderizarListaAplicativos();
+  }
+
+  function caminhoServidores() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/servidores`;
+  }
+
+  async function carregarServidores() {
+    const res = await fetch(`${caminhoServidores()}.json`);
+    const data = await res.json() || {};
+    servidores = Object.entries(data).map(([id, s]) => ({ id, ...s }));
+    preencherSelectServidores();
+  }
+
+  function preencherSelectServidores() {
+    const select = document.getElementById('f-servidor');
+    const valorAtual = select.value;
+    select.innerHTML = servidores.length
+      ? servidores.map(s => `<option value="${s.nome}">${s.nome}</option>`).join('')
+      : '<option value="">Nenhum servidor cadastrado</option>';
+    if (valorAtual) select.value = valorAtual;
+  }
+
+  function abrirServidores() {
+    document.getElementById('editando-servidor-id').value = '';
+    document.getElementById('novo-servidor-nome').value = '';
+    document.getElementById('novo-servidor-dominio').value = '';
+    document.getElementById('btn-salvar-servidor').textContent = 'Adicionar';
+    renderizarListaServidores();
+    document.getElementById('overlay-servidores').classList.add('open');
+  }
+  function fecharServidores() {
+    document.getElementById('overlay-servidores').classList.remove('open');
+  }
+  function renderizarListaServidores() {
+    const container = document.getElementById('lista-servidores');
+    if (servidores.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhum servidor cadastrado ainda.</div>';
+      return;
+    }
+    container.innerHTML = servidores.map(s => `
+      <div class="lista-item">
+        <span>${s.nome} ${s.dominioM3U ? `<span class="mono" style="color:var(--text-muted); font-size:11px;">(${s.dominioM3U})</span>` : ''}</span>
+        <span style="display:flex; gap:10px;">
+          <button class="del-mini" style="color:var(--text-muted);" onclick="editarServidor('${s.id}')">editar</button>
+          <button class="del-mini" onclick="excluirServidor('${s.id}')">remover</button>
+        </span>
+      </div>
+    `).join('');
+  }
+  function editarServidor(id) {
+    const s = servidores.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('editando-servidor-id').value = id;
+    document.getElementById('novo-servidor-nome').value = s.nome;
+    document.getElementById('novo-servidor-dominio').value = s.dominioM3U || '';
+    document.getElementById('btn-salvar-servidor').textContent = 'Salvar alteração';
+  }
+  async function adicionarServidor() {
+    const idEditando = document.getElementById('editando-servidor-id').value;
+    const nome = document.getElementById('novo-servidor-nome').value.trim();
+    const dominioM3U = document.getElementById('novo-servidor-dominio').value.trim();
+    if (!nome) return;
+
+    if (idEditando) {
+      await fetch(`${caminhoServidores()}/${idEditando}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nome, dominioM3U })
+      });
+    } else {
+      await fetch(`${caminhoServidores()}.json`, {
+        method: 'POST',
+        body: JSON.stringify({ nome, dominioM3U })
+      });
+    }
+
+    document.getElementById('editando-servidor-id').value = '';
+    document.getElementById('novo-servidor-nome').value = '';
+    document.getElementById('novo-servidor-dominio').value = '';
+    document.getElementById('btn-salvar-servidor').textContent = 'Adicionar';
+    await carregarServidores();
+    renderizarListaServidores();
+  }
+  async function excluirServidor(id) {
+    if (!confirm('Remover esse servidor da lista?')) return;
+    await fetch(`${caminhoServidores()}/${id}.json`, { method: 'DELETE' });
+    await carregarServidores();
+    renderizarListaServidores();
+  }
+
+  function atualizarStats() {
+    const oficiais = clientes.filter(c => !c.emTeste);
+    const ativos = oficiais.filter(c => statusCalculado(c) === 'ativo');
+    const em3dias = oficiais.filter(c => diasAte(c.vencimento) === 3).length;
+    const hoje = oficiais.filter(c => diasAte(c.vencimento) === 0).length;
+    const vencidos = oficiais.filter(c => diasAte(c.vencimento) < 0).length;
+
+    document.getElementById('stat-total').textContent = oficiais.length;
+    document.getElementById('stat-ativos').textContent = ativos.length;
+    document.getElementById('stat-3dias').textContent = em3dias;
+    document.getElementById('stat-hoje').textContent = hoje;
+    document.getElementById('stat-vencidos').textContent = vencidos;
+  }
+
+  function renderizar() {
+    const busca = document.getElementById('busca').value.toLowerCase();
+    const buscaDigitos = busca.replace(/\D/g, '');
+    let lista = clientes.filter(c =>
+      c.nome?.toLowerCase().includes(busca) ||
+      (buscaDigitos.length > 0 && c.whatsapp?.includes(buscaDigitos))
+    );
+
+    if (filtroAtual !== 'todos') {
+      lista = lista.filter(c => !c.emTeste);
+      if (filtroAtual === 'ativo') lista = lista.filter(c => statusCalculado(c) === 'ativo');
+      if (filtroAtual === '3dias') lista = lista.filter(c => diasAte(c.vencimento) === 3);
+      if (filtroAtual === 'hoje') lista = lista.filter(c => diasAte(c.vencimento) === 0);
+      if (filtroAtual === 'vencido') lista = lista.filter(c => diasAte(c.vencimento) < 0);
+    }
+
+    lista.sort((a,b) => a.vencimento - b.vencimento);
+
+    const tbody = document.getElementById('tabela-clientes');
+    const emptyState = document.getElementById('empty-state');
+
+    if (lista.length === 0) {
+      tbody.innerHTML = '';
+      emptyState.style.display = 'block';
+      atualizarBarraSelecao();
+      return;
+    }
+    emptyState.style.display = 'none';
+
+    tbody.innerHTML = lista.map(c => {
+      const dias = diasAte(c.vencimento);
+      let dataFormatada, diasTexto, statusHtml;
+
+      if (c.emTeste) {
+        dataFormatada = new Date(c.vencimento).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const horasRestantes = Math.round((c.vencimento - Date.now()) / (1000*60*60));
+        diasTexto = horasRestantes <= 0 ? 'teste encerrado' : `restam ${horasRestantes}h de teste`;
+        statusHtml = `<span class="badge" style="background:rgba(96,165,250,0.15); color:#60A5FA;">🧪 teste</span>`;
+      } else {
+        dataFormatada = new Date(c.vencimento).toLocaleDateString('pt-BR');
+        diasTexto = dias < 0 ? `${Math.abs(dias)}d atrasado` : dias === 0 ? 'vence hoje' : `em ${dias}d`;
+        const status = statusCalculado(c);
+        statusHtml = `<span class="badge ${status}">${status}</span>`;
+      }
+
+      return `
+        <tr>
+          <td data-label=""><input type="checkbox" class="chk-cliente" value="${c.id}" ${selecionados.has(c.id) ? 'checked' : ''} onchange="toggleSelecao('${c.id}')"></td>
+          <td data-label="Cliente"><b>${c.nome}</b></td>
+          <td data-label="Usuário" class="mono">${c.usuario || '—'}</td>
+          <td data-label="Servidor">${c.servidor || '—'}</td>
+          <td data-label="Vencimento"><div class="mono">${dataFormatada}</div><div style="font-size:12px; color:var(--text-muted);">${diasTexto}</div></td>
+          <td data-label="Plano" class="mono">R$ ${Number(c.planoValor||0).toFixed(2)}</td>
+          <td data-label="Status">${statusHtml}</td>
+          <td data-label="Ações">
+            <div class="actions">
+              <a class="icon-btn" href="https://wa.me/${c.whatsapp}" target="_blank" title="WhatsApp"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.148-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"></path><path d="M12.001 2C6.478 2 2 6.477 2 12c0 1.921.532 3.716 1.457 5.246L2 22l4.897-1.285A9.953 9.953 0 0 0 12.001 22C17.523 22 22 17.523 22 12S17.523 2 12.001 2zm0 18.09c-1.68 0-3.24-.494-4.552-1.343l-.327-.204-3.007.789.803-2.933-.213-.302A7.994 7.994 0 0 1 4.01 12c0-4.411 3.58-7.99 7.991-7.99 4.41 0 7.99 3.579 7.99 7.99 0 4.41-3.58 8.09-7.99 8.09z"></path></svg></a>
+              ${c.emTeste ? `<button class="icon-btn" style="color:#60A5FA; border-color:#60A5FA;" onclick="abrirAtivarOficial('${c.id}')" title="Ativar como oficial">✅</button>` : ''}
+              <button class="icon-btn" onclick="abrirRenovacao('${c.id}')" title="Renovar" style="color:var(--ok);">🔄</button>
+              <button class="icon-btn" onclick="enviarPushManual('${c.id}')" title="Enviar push">🔔</button>
+              <a class="icon-btn" href="https://wa.me/${c.whatsapp}?text=${encodeURIComponent('Olá ' + c.nome + '! Acompanhe seu plano por aqui: ' + window.location.origin + '/meu-plano.html?rev=' + uidRevendedor + '&id=' + c.id)}" target="_blank" title="Enviar link do painel">🔗</a>
+              <button class="icon-btn" onclick="editarCliente('${c.id}')" title="Editar">✏️</button>
+              <button class="icon-btn del" onclick="excluirCliente('${c.id}')" title="Excluir">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    atualizarBarraSelecao();
+  }
+
+  async function buscarDadosM3U() {
+    const link = document.getElementById('f-m3u').value.trim();
+    const statusEl = document.getElementById('m3u-status');
+
+    if (!link) { statusEl.textContent = 'Cola o link M3U primeiro.'; statusEl.style.color = 'var(--danger)'; return; }
+
+    statusEl.textContent = 'Consultando o painel...';
+    statusEl.style.color = 'var(--text-muted)';
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/consultar-iptv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ link })
+      });
+      const data = await res.json();
+
+      if (data.erro) {
+        statusEl.textContent = '❌ ' + data.erro;
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+
+      document.getElementById('f-usuario').value = data.usuario || '';
+      document.getElementById('f-senha').value = data.senha || '';
+      if (data.vencimento) {
+        document.getElementById('f-vencimento').value = new Date(data.vencimento).toISOString().slice(0, 10);
+      }
+
+      let servidorDetectado = '';
+      if (data.baseUrl) {
+        const dominioLink = data.baseUrl.replace(/^https?:\/\//, '').split(':')[0];
+        const servidorEncontrado = servidores.find(s => s.dominioM3U && dominioLink.includes(s.dominioM3U));
+        if (servidorEncontrado) {
+          servidorDetectado = servidorEncontrado.nome;
+          document.getElementById('f-servidor').value = servidorDetectado;
+          preencherChecklistAplicativos(servidorDetectado, null);
+        }
+      }
+
+      statusEl.textContent = `✅ Dados encontrados! Status no painel: ${data.statusPainel || 'desconhecido'}${servidorDetectado ? ' · Servidor detectado: ' + servidorDetectado : ''}`;
+      statusEl.style.color = 'var(--ok)';
+    } catch (err) {
+      statusEl.textContent = '❌ Erro ao consultar. Tenta de novo.';
+      statusEl.style.color = 'var(--danger)';
+    }
+  }
+
+  let horasTeste = 2;
+
+  function setHorasTeste(horas) {
+    horasTeste = horas;
+    document.querySelectorAll('.horas-chip').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.horas) === horas);
+    });
+  }
+
+  function alternarModoTeste() {
+    const emTeste = document.getElementById('f-teste').checked;
+    document.getElementById('f-teste-horas-bloco').style.display = emTeste ? 'block' : 'none';
+    document.getElementById('f-vencimento-bloco').style.display = emTeste ? 'none' : 'block';
+    if (emTeste) setHorasTeste(2);
+  }
+
+  function abrirModal() {
+    if (!acessoLiberado) { alert('Seu período de teste terminou. Assine pra voltar a cadastrar clientes.'); return; }
+    document.getElementById('modal-titulo').textContent = 'Novo cliente';
+    document.getElementById('cliente-id').value = '';
+    document.getElementById('f-teste').checked = false;
+    alternarModoTeste();
+    document.getElementById('f-nome').value = '';
+    document.getElementById('f-m3u').value = '';
+    document.getElementById('m3u-status').textContent = '';
+    document.getElementById('f-whatsapp').value = '';
+    document.getElementById('f-usuario').value = '';
+    document.getElementById('f-senha').value = '';
+    preencherSelectServidores();
+    document.getElementById('f-servidor').value = '';
+    preencherChecklistAplicativos('', null);
+    document.getElementById('f-valor').value = '';
+    document.getElementById('f-vencimento').value = '';
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  function fecharModal() {
+    document.getElementById('overlay').classList.remove('open');
+  }
+
+  function editarCliente(id) {
+    if (!acessoLiberado) { alert('Seu período de teste terminou. Assine pra voltar a gerenciar clientes.'); return; }
+    const c = clientes.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('modal-titulo').textContent = 'Editar cliente';
+    document.getElementById('cliente-id').value = c.id;
+    document.getElementById('f-teste').checked = !!c.emTeste;
+    alternarModoTeste();
+    document.getElementById('f-nome').value = c.nome || '';
+    document.getElementById('f-m3u').value = c.m3uLink || '';
+    document.getElementById('m3u-status').textContent = '';
+    document.getElementById('f-whatsapp').value = c.whatsapp || '';
+    document.getElementById('f-usuario').value = c.usuario || '';
+    document.getElementById('f-senha').value = c.senha || '';
+    preencherSelectServidores();
+    document.getElementById('f-servidor').value = c.servidor || '';
+    preencherChecklistAplicativos(c.servidor || '', c.aplicativosIds || []);
+    document.getElementById('f-valor').value = c.planoValor || '';
+    document.getElementById('f-vencimento').value = new Date(c.vencimento).toISOString().slice(0,10);
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  async function salvarCliente() {
+    const id = document.getElementById('cliente-id').value;
+    const nome = document.getElementById('f-nome').value.trim();
+    const m3uLink = document.getElementById('f-m3u').value.trim();
+    const whatsapp = document.getElementById('f-whatsapp').value.replace(/\D/g,'');
+    const usuario = document.getElementById('f-usuario').value.trim();
+    const senha = document.getElementById('f-senha').value.trim();
+    const servidor = document.getElementById('f-servidor').value.trim();
+    const aplicativosIds = Array.from(document.querySelectorAll('.chk-app:checked')).map(el => el.value);
+    const planoValor = parseFloat(document.getElementById('f-valor').value) || 0;
+    const emTeste = document.getElementById('f-teste').checked;
+
+    let vencimento;
+    if (emTeste) {
+      vencimento = Date.now() + horasTeste * 60 * 60 * 1000;
+      if (!nome || !whatsapp) {
+        alert('Preenche nome e WhatsApp.');
+        return;
+      }
+    } else {
+      const vencimentoInput = document.getElementById('f-vencimento').value;
+      if (!nome || !whatsapp || !vencimentoInput) {
+        alert('Preenche nome, WhatsApp e vencimento.');
+        return;
+      }
+      vencimento = new Date(vencimentoInput + 'T12:00:00').getTime();
+    }
+
+    if (id) {
+      await fetch(`${caminhoClientes()}/${id}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nome, m3uLink, whatsapp, usuario, senha, servidor, aplicativosIds, planoValor, vencimento, emTeste })
+      });
+    } else {
+      const novoCliente = {
+        nome, m3uLink, whatsapp, usuario, senha, servidor, aplicativosIds, planoValor, vencimento, emTeste,
+        criadoEm: Date.now()
+      };
+      await fetch(`${caminhoClientes()}.json`, {
+        method: 'POST',
+        body: JSON.stringify(novoCliente)
+      });
+      if (!emTeste) {
+        await registrarFinanceiro({ nome, servidor }, planoValor, 'cadastro');
+      }
+    }
+
+    fecharModal();
+    await carregarClientes();
+  }
+
+  // ---- Menu ----
+  function abrirMenu() {
+    document.getElementById('overlay-menu').classList.add('open');
+  }
+  function fecharMenu() {
+    document.getElementById('overlay-menu').classList.remove('open');
+  }
+
+  // ---- Notificações ----
+  function abrirNotificacoes() {
+    const ativos = clientes.filter(c => c.notificacaoAtiva);
+    const inativos = clientes.filter(c => !c.notificacaoAtiva);
+    document.getElementById('notif-ativos').textContent = ativos.length;
+    document.getElementById('notif-inativos').textContent = inativos.length;
+    const container = document.getElementById('lista-notificacoes');
+    container.innerHTML = clientes.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum cliente cadastrado.</div>'
+      : clientes.map(c => `
+        <div class="lista-item">
+          <span>${c.nome}</span>
+          <span class="badge ${c.notificacaoAtiva ? 'ativo' : 'inativo'}">${c.notificacaoAtiva ? 'ativada' : 'não ativada'}</span>
+        </div>
+      `).join('');
+    document.getElementById('overlay-notificacoes').classList.add('open');
+  }
+  function fecharNotificacoes() {
+    document.getElementById('overlay-notificacoes').classList.remove('open');
+  }
+
+  // ---- Trocar domínio M3U em massa ----
+  let clientesParaTrocarDominio = [];
+  function abrirTrocarDominio() {
+    document.getElementById('td-dominio-antigo').value = '';
+    document.getElementById('td-dominio-novo').value = '';
+    document.getElementById('td-resumo').innerHTML = '';
+    document.getElementById('btn-aplicar-troca-dominio').style.display = 'none';
+    clientesParaTrocarDominio = [];
+    document.getElementById('overlay-trocar-dominio').classList.add('open');
+  }
+  function fecharTrocarDominio() {
+    document.getElementById('overlay-trocar-dominio').classList.remove('open');
+  }
+  function analisarTrocaDominio() {
+    const antigo = document.getElementById('td-dominio-antigo').value.trim();
+    const novo = document.getElementById('td-dominio-novo').value.trim();
+    const resumo = document.getElementById('td-resumo');
+    if (!antigo || !novo) { resumo.textContent = 'Preenche os dois campos.'; return; }
+    clientesParaTrocarDominio = clientes.filter(c => c.m3uLink && c.m3uLink.includes(antigo));
+    if (clientesParaTrocarDominio.length === 0) {
+      resumo.textContent = `Nenhum cliente encontrado com "${antigo}" no link M3U.`;
+      document.getElementById('btn-aplicar-troca-dominio').style.display = 'none';
+      return;
+    }
+    resumo.innerHTML = `<div style="color:var(--ok); font-weight:600;">${clientesParaTrocarDominio.length} cliente(s) encontrado(s)</div>`;
+    document.getElementById('btn-aplicar-troca-dominio').style.display = 'inline-block';
+  }
+  async function aplicarTrocaDominio() {
+    const antigo = document.getElementById('td-dominio-antigo').value.trim();
+    const novo = document.getElementById('td-dominio-novo').value.trim();
+    if (!confirm(`Atualizar ${clientesParaTrocarDominio.length} cliente(s)?`)) return;
+    const resumo = document.getElementById('td-resumo');
+    await Promise.all(clientesParaTrocarDominio.map(c => {
+      const novoLink = c.m3uLink.replaceAll(antigo, novo);
+      return fetch(`${caminhoClientes()}/${c.id}.json`, { method: 'PATCH', body: JSON.stringify({ m3uLink: novoLink }) });
+    }));
+    const servidoresParaAtualizar = servidores.filter(s => s.dominioM3U && s.dominioM3U.includes(antigo));
+    if (servidoresParaAtualizar.length > 0) {
+      await Promise.all(servidoresParaAtualizar.map(s =>
+        fetch(`${caminhoServidores()}/${s.id}.json`, { method: 'PATCH', body: JSON.stringify({ dominioM3U: s.dominioM3U.replaceAll(antigo, novo) }) })
+      ));
+      await carregarServidores();
+    }
+    resumo.innerHTML = `✅ ${clientesParaTrocarDominio.length} cliente(s) atualizado(s)!`;
+    document.getElementById('btn-aplicar-troca-dominio').style.display = 'none';
+    await carregarClientes();
+  }
+
+  // ---- Importar CSV ----
+  let importarDadosValidos = [];
+  function abrirImportar() {
+    document.getElementById('importar-arquivo').value = '';
+    document.getElementById('importar-resumo').innerHTML = '';
+    document.getElementById('importar-progresso').innerHTML = '';
+    document.getElementById('btn-confirmar-importacao').style.display = 'none';
+    importarDadosValidos = [];
+    document.getElementById('overlay-importar').classList.add('open');
+  }
+  function fecharImportar() {
+    document.getElementById('overlay-importar').classList.remove('open');
+  }
+  function parseCSV(texto) {
+    const linhas = [];
+    let linhaAtual = [], campoAtual = '', dentroAspas = false;
+    for (let i = 0; i < texto.length; i++) {
+      const char = texto[i], proximo = texto[i+1];
+      if (dentroAspas) {
+        if (char === '"' && proximo === '"') { campoAtual += '"'; i++; }
+        else if (char === '"') { dentroAspas = false; }
+        else campoAtual += char;
+      } else {
+        if (char === '"') dentroAspas = true;
+        else if (char === ',') { linhaAtual.push(campoAtual); campoAtual = ''; }
+        else if (char === '\n' || char === '\r') {
+          if (char === '\r' && proximo === '\n') i++;
+          linhaAtual.push(campoAtual); campoAtual = '';
+          if (linhaAtual.length > 1 || linhaAtual[0] !== '') linhas.push(linhaAtual);
+          linhaAtual = [];
+        } else campoAtual += char;
+      }
+    }
+    if (campoAtual !== '' || linhaAtual.length > 0) { linhaAtual.push(campoAtual); linhas.push(linhaAtual); }
+    const cabecalho = linhas[0];
+    return linhas.slice(1).map(linha => {
+      const obj = {};
+      cabecalho.forEach((col, i) => { obj[col.trim()] = (linha[i] || '').trim(); });
+      return obj;
+    });
+  }
+  function parseDataBR(str) {
+    const partes = (str || '').split('/');
+    if (partes.length !== 3) return null;
+    const [dia, mes, ano] = partes.map(p => parseInt(p, 10));
+    if (!dia || !mes || ano < 2000) return null;
+    return new Date(ano, mes - 1, dia, 12, 0, 0).getTime();
+  }
+  function prepararImportacao() {
+    const arquivo = document.getElementById('importar-arquivo').files[0];
+    if (!arquivo) { alert('Escolhe o arquivo CSV primeiro.'); return; }
+    const leitor = new FileReader();
+    leitor.onload = (e) => {
+      const linhas = parseCSV(e.target.result);
+      let excluidosWhats = 0, excluidosData = 0;
+      importarDadosValidos = [];
+      linhas.forEach(linha => {
+        const whatsapp = (linha.WhatsApp || '').replace(/\D/g, '');
+        const vencimento = parseDataBR(linha.Vencimento);
+        if (!whatsapp) { excluidosWhats++; return; }
+        if (!vencimento) { excluidosData++; return; }
+        importarDadosValidos.push({
+          nome: (linha.Nome || '').trim() || 'Sem nome',
+          usuario: (linha.Usuario || '').trim(),
+          senha: (linha.Senha || '').trim(),
+          whatsapp,
+          servidor: (linha.Servidor || '').trim(),
+          planoValor: parseFloat((linha.Valor || '0').replace(',', '.')) || 0,
+          vencimento,
+          criadoEm: Date.now()
+        });
+      });
+      document.getElementById('importar-resumo').innerHTML = `
+        <div class="lista-item"><span>Total no arquivo</span><span class="mono">${linhas.length}</span></div>
+        <div class="lista-item"><span>Válidos</span><span class="mono" style="color:var(--ok);">${importarDadosValidos.length}</span></div>
+        <div class="lista-item"><span>Sem WhatsApp</span><span class="mono">${excluidosWhats}</span></div>
+        <div class="lista-item"><span>Data inválida</span><span class="mono">${excluidosData}</span></div>
+      `;
+      document.getElementById('btn-confirmar-importacao').style.display = importarDadosValidos.length > 0 ? 'inline-block' : 'none';
+    };
+    leitor.readAsText(arquivo, 'UTF-8');
+  }
+  async function confirmarImportacao() {
+    if (importarDadosValidos.length === 0) return;
+    if (!confirm(`Importar ${importarDadosValidos.length} clientes agora?`)) return;
+    const progresso = document.getElementById('importar-progresso');
+    let importados = 0;
+    const TAMANHO_LOTE = 20;
+    for (let i = 0; i < importarDadosValidos.length; i += TAMANHO_LOTE) {
+      const lote = importarDadosValidos.slice(i, i + TAMANHO_LOTE);
+      await Promise.all(lote.map(cliente => fetch(`${caminhoClientes()}.json`, { method: 'POST', body: JSON.stringify(cliente) })));
+      importados += lote.length;
+      progresso.textContent = `Importando... ${importados} / ${importarDadosValidos.length}`;
+    }
+    progresso.textContent = `✅ ${importados} clientes importados!`;
+    document.getElementById('btn-confirmar-importacao').style.display = 'none';
+    await carregarClientes();
+  }
+
+  // ---- Ativar cliente de teste como oficial ----
+  function abrirAtivarOficial(id) {
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+    document.getElementById('oficial-cliente-id').value = id;
+    document.getElementById('oficial-valor').value = cliente.planoValor || '';
+    const em30dias = new Date(Date.now() + 30*24*60*60*1000);
+    document.getElementById('oficial-vencimento').value = em30dias.toISOString().slice(0,10);
+    document.getElementById('oficial-vencimento-status').textContent = '';
+    document.getElementById('btn-buscar-vencimento-oficial').style.display = cliente.m3uLink ? 'inline-block' : 'none';
+    document.getElementById('overlay-ativar-oficial').classList.add('open');
+  }
+  function fecharAtivarOficial() {
+    document.getElementById('overlay-ativar-oficial').classList.remove('open');
+  }
+  async function buscarVencimentoOficial() {
+    const id = document.getElementById('oficial-cliente-id').value;
+    const cliente = clientes.find(c => c.id === id);
+    const statusEl = document.getElementById('oficial-vencimento-status');
+    if (!cliente || !cliente.m3uLink) return;
+    statusEl.textContent = 'Consultando...';
+    statusEl.style.color = 'var(--text-muted)';
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/consultar-iptv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ link: cliente.m3uLink })
+      });
+      const data = await res.json();
+      if (data.erro) { statusEl.textContent = '❌ ' + data.erro; statusEl.style.color = 'var(--danger)'; return; }
+      if (data.vencimento) {
+        document.getElementById('oficial-vencimento').value = new Date(data.vencimento).toISOString().slice(0,10);
+        statusEl.textContent = '✅ Vencimento encontrado!';
+        statusEl.style.color = 'var(--ok)';
+      }
+    } catch (err) {
+      statusEl.textContent = '❌ Erro ao consultar.';
+      statusEl.style.color = 'var(--danger)';
+    }
+  }
+  async function confirmarAtivarOficial() {
+    const id = document.getElementById('oficial-cliente-id').value;
+    const valor = parseFloat(document.getElementById('oficial-valor').value) || 0;
+    const vencimentoInput = document.getElementById('oficial-vencimento').value;
+    if (!valor || !vencimentoInput) { alert('Preenche o valor e o vencimento.'); return; }
+    const vencimento = new Date(vencimentoInput + 'T12:00:00').getTime();
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/ativar-oficial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ clienteId: id, planoValor: valor, vencimento })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+
+      fecharAtivarOficial();
+      await registrarFinanceiro({ nome: data.cliente?.nome, servidor: data.cliente?.servidor }, valor, 'cadastro');
+      await carregarClientes();
+
+      if (data.cliente?.whatsapp && data.comprovante) {
+        window.open(`https://wa.me/${data.cliente.whatsapp}?text=${encodeURIComponent(data.comprovante)}`, '_blank');
+      }
+      alert(`✅ ${data.cliente?.nome || 'Cliente'} agora é oficial!`);
+    } catch (err) {
+      alert('Erro ao ativar cliente.');
+    }
+  }
+
+  // ---- Remarketing ----
+  function clientesFiltradosRemarketing() {
+    const status = document.getElementById('remkt-status').value;
+    let lista = clientes.filter(c => !c.emTeste);
+    if (status === 'ativo') lista = lista.filter(c => statusCalculado(c) === 'ativo');
+    if (status === '3dias') lista = lista.filter(c => diasAte(c.vencimento) === 3);
+    if (status === 'hoje') lista = lista.filter(c => diasAte(c.vencimento) === 0);
+    if (status === 'vencido') lista = lista.filter(c => diasAte(c.vencimento) < 0);
+    return lista;
+  }
+  function atualizarContagemRemarketing() {
+    document.getElementById('remkt-contagem').textContent = `${clientesFiltradosRemarketing().length} cliente(s) selecionado(s)`;
+    document.getElementById('remkt-links-whats').innerHTML = '';
+  }
+  function abrirRemarketing() {
+    document.getElementById('remkt-status').value = 'todos';
+    document.getElementById('remkt-assunto').value = 'Oferta especial pra você';
+    document.getElementById('remkt-mensagem').value = 'Olá {nome}! Temos uma condição especial pra você renovar seu plano. Chama a gente!';
+    document.getElementById('remkt-links-whats').innerHTML = '';
+    atualizarContagemRemarketing();
+    document.getElementById('overlay-remarketing').classList.add('open');
+  }
+  function fecharRemarketing() {
+    document.getElementById('overlay-remarketing').classList.remove('open');
+  }
+  function preencherTemplateJS(template, c) {
+    const dias = diasAte(c.vencimento);
+    return (template || '')
+      .replaceAll('{nome}', c.nome || '')
+      .replaceAll('{data_vencimento}', new Date(c.vencimento).toLocaleDateString('pt-BR'))
+      .replaceAll('{valor_plano}', Number(c.planoValor || 0).toFixed(2))
+      .replaceAll('{servidor}', c.servidor || '')
+      .replaceAll('{dias_restantes}', String(dias));
+  }
+  async function enviarEmailMassa() {
+    const lista = clientesFiltradosRemarketing().filter(c => c.email);
+    if (lista.length === 0) { alert('Nenhum cliente com e-mail nesse filtro.'); return; }
+    if (!confirm(`Enviar e-mail pra ${lista.length} cliente(s)?`)) return;
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/remarketing-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
         body: JSON.stringify({
-          nome,
-          email,
-          criadoEm: Date.now(),
-          ativo: true,
-          assinaturaStatus: 'teste',
-          testeAte: Date.now() + testeHoras * 60 * 60 * 1000,
-          indicadoPor: refUid || null
+          clienteIds: lista.map(c => c.id),
+          assunto: document.getElementById('remkt-assunto').value,
+          corpo: document.getElementById('remkt-mensagem').value
         })
       });
+      const data = await res.json();
+      const sucesso = data.resultados?.filter(r => r.enviado).length || 0;
+      alert(`${sucesso} de ${lista.length} e-mail(s) enviado(s).`);
+    } catch (err) { alert('Erro ao enviar e-mails.'); }
+  }
+  async function enviarPushMassa() {
+    const lista = clientesFiltradosRemarketing().filter(c => c.fcmToken && c.notificacaoAtiva);
+    if (lista.length === 0) { alert('Nenhum cliente com push ativado nesse filtro.'); return; }
+    if (!confirm(`Enviar push pra ${lista.length} cliente(s)?`)) return;
+    const corpo = document.getElementById('remkt-mensagem').value;
+    let enviados = 0;
+    const idToken = await auth.currentUser.getIdToken();
+    for (const c of lista) {
+      const res = await fetch('/api/notificar-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ clienteId: c.id, mensagemCustom: corpo })
+      });
+      const data = await res.json();
+      if (data.enviado) enviados++;
+    }
+    alert(`${enviados} de ${lista.length} push(es) enviado(s).`);
+  }
+  function verLinksWhatsappMassa() {
+    const lista = clientesFiltradosRemarketing().filter(c => c.whatsapp);
+    const corpo = document.getElementById('remkt-mensagem').value;
+    const container = document.getElementById('remkt-links-whats');
+    if (lista.length === 0) { container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhum cliente com WhatsApp nesse filtro.</div>'; return; }
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">Clica em cada botão pra abrir a conversa já com a mensagem pronta:</div>` +
+      lista.map(c => {
+        const texto = preencherTemplateJS(corpo, c);
+        return `<div class="lista-item"><span>${c.nome}</span><a class="btn" style="padding:6px 12px; font-size:12px;" href="https://wa.me/${c.whatsapp}?text=${encodeURIComponent(texto)}" target="_blank">Abrir</a></div>`;
+      }).join('');
+  }
 
-      window.location.href = '/index.html';
+  // ---- Configurações da Plataforma (master) ----
+  async function abrirConfigPlataforma() {
+    const res = await fetch(`${FIREBASE_DB}/configPlataforma.json`);
+    const cfg = await res.json() || {};
+    document.getElementById('cp-teste-horas').value = cfg.testeHoras ?? 48;
+    document.getElementById('cp-mensalidade').value = cfg.mensalidadeValor ?? 19.90;
+    document.getElementById('cp-comissao-percentual').value = cfg.comissaoPercentual ?? 40;
+    document.getElementById('cp-dia-pagamento').value = cfg.diaPagamentoComissao ?? 20;
+    document.getElementById('overlay-config-plataforma').classList.add('open');
+  }
+  function fecharConfigPlataforma() {
+    document.getElementById('overlay-config-plataforma').classList.remove('open');
+  }
+  async function salvarConfigPlataforma() {
+    const testeHoras = parseFloat(document.getElementById('cp-teste-horas').value) || 48;
+    const mensalidadeValor = parseFloat(document.getElementById('cp-mensalidade').value) || 19.90;
+    const comissaoPercentual = parseFloat(document.getElementById('cp-comissao-percentual').value) || 40;
+    const diaPagamentoComissao = Math.min(28, Math.max(1, parseInt(document.getElementById('cp-dia-pagamento').value, 10) || 20));
+    await fetch(`${FIREBASE_DB}/configPlataforma.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ testeHoras, mensalidadeValor, comissaoPercentual, diaPagamentoComissao })
+    });
+    fecharConfigPlataforma();
+    alert('Configurações da plataforma salvas!');
+  }
+
+  // ---- Revendedores (master) ----
+  let ultimaListaRevendedores = [];
+  let ultimaListaComissoes = [];
+
+  // ---- Comissionamento (ciclo de pagamento) ----
+  let cicloComissionamento = { inicio: 0, fim: 0 };
+
+  function computeCiclo(diaPagamento, dataReferencia) {
+    let ano = dataReferencia.getFullYear();
+    let mesFim = dataReferencia.getMonth();
+    if (dataReferencia.getDate() > diaPagamento) {
+      mesFim += 1;
+      if (mesFim > 11) { mesFim = 0; ano += 1; }
+    }
+    const fim = new Date(ano, mesFim, diaPagamento, 23, 59, 59);
+    const inicio = new Date(ano, mesFim - 1, diaPagamento + 1, 0, 0, 0);
+    return { inicio: inicio.getTime(), fim: fim.getTime() };
+  }
+
+  async function abrirComissionamento() {
+    const cfgRes = await fetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`);
+    const diaPagamento = (await cfgRes.json()) || 20;
+
+    cicloComissionamento = computeCiclo(diaPagamento, new Date());
+    const cicloAnterior = computeCiclo(diaPagamento, new Date(cicloComissionamento.inicio - 1000));
+
+    document.getElementById('com-filtro-inicio').value = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
+    document.getElementById('com-filtro-fim').value = new Date(cicloComissionamento.fim).toISOString().slice(0,10);
+    document.getElementById('ciclo-comissionamento-label').textContent =
+      `Período vigente — vence dia ${new Date(cicloComissionamento.fim).toLocaleDateString('pt-BR')}`;
+
+    const [revRes, comRes] = await Promise.all([
+      fetch(`${FIREBASE_DB}/revendedores.json`),
+      fetch(`${FIREBASE_DB}/comissoes.json`)
+    ]);
+    ultimaListaRevendedores = Object.entries(await revRes.json() || {}).map(([id, r]) => ({ id, ...r }));
+    ultimaListaComissoes = Object.entries(await comRes.json() || {}).map(([id, c]) => ({ id, ...c }));
+
+    // Alerta: sobrou pendência do ciclo que já fechou?
+    const pendentesCicloAnterior = ultimaListaComissoes.filter(c =>
+      c.status === 'pendente' && c.data >= cicloAnterior.inicio && c.data <= cicloAnterior.fim
+    );
+    const alerta = document.getElementById('alerta-ciclo-atrasado');
+    if (pendentesCicloAnterior.length > 0) {
+      const totalAtrasado = pendentesCicloAnterior.reduce((s, c) => s + c.valor, 0);
+      alerta.style.display = 'block';
+      alerta.textContent = `⚠️ Ficou R$ ${totalAtrasado.toFixed(2)} pendente do ciclo que fechou dia ${new Date(cicloAnterior.fim).toLocaleDateString('pt-BR')} e ainda não foi pago!`;
+    } else {
+      alerta.style.display = 'none';
+    }
+
+    await renderizarComissionamento();
+    document.getElementById('overlay-comissionamento').classList.add('open');
+  }
+  function fecharComissionamento() {
+    document.getElementById('overlay-comissionamento').classList.remove('open');
+  }
+  function usarCicloVigenteComissionamento() {
+    document.getElementById('com-filtro-inicio').value = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
+    document.getElementById('com-filtro-fim').value = new Date(cicloComissionamento.fim).toISOString().slice(0,10);
+    document.getElementById('ciclo-comissionamento-label').textContent =
+      `Período vigente — vence dia ${new Date(cicloComissionamento.fim).toLocaleDateString('pt-BR')}`;
+    renderizarComissionamento();
+  }
+
+  async function renderizarComissionamento() {
+    const inicioInput = document.getElementById('com-filtro-inicio').value;
+    const fimInput = document.getElementById('com-filtro-fim').value;
+    const inicio = inicioInput ? new Date(inicioInput + 'T00:00:00').getTime() : 0;
+    const fim = fimInput ? new Date(fimInput + 'T23:59:59').getTime() : Date.now();
+
+    const inicioPadrao = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
+    if (inicioInput !== inicioPadrao) {
+      document.getElementById('ciclo-comissionamento-label').textContent = 'Período filtrado manualmente';
+    }
+
+    const comissoesNoPeriodo = ultimaListaComissoes.filter(c => c.data >= inicio && c.data <= fim && c.status === 'pendente');
+    const totalPeriodo = comissoesNoPeriodo.reduce((s, c) => s + c.valor, 0);
+    document.getElementById('ciclo-comissionamento-total').textContent = `R$ ${totalPeriodo.toFixed(2)}`;
+
+    // Só entram revendedores que têm pelo menos 1 indicado E algo pendente no período
+    const revendedoresComPendencia = ultimaListaRevendedores.filter(rev => {
+      const temIndicado = ultimaListaRevendedores.some(r => r.indicadoPor === rev.id);
+      const temPendenteNoPeriodo = comissoesNoPeriodo.some(c => c.revendedorId === rev.id);
+      return temIndicado && temPendenteNoPeriodo;
+    });
+
+    const container = document.getElementById('lista-comissionamento');
+    if (revendedoresComPendencia.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhuma comissão pendente nesse período.</div>';
+      return;
+    }
+
+    container.innerHTML = '<div class="loading" style="padding:20px;">Carregando detalhes...</div>';
+
+    const linhas = await Promise.all(revendedoresComPendencia.map(async (rev) => {
+      const comissoesDele = comissoesNoPeriodo.filter(c => c.revendedorId === rev.id);
+      const totalDele = comissoesDele.reduce((s, c) => s + c.valor, 0);
+
+      const [pixRes] = await Promise.all([
+        fetch(`${FIREBASE_DB}/revendedores/${rev.id}/config/chavePix.json`)
+      ]);
+      const chavePix = await pixRes.json();
+
+      const detalhesIndicados = await Promise.all(comissoesDele.map(async (c) => {
+        const indicado = ultimaListaRevendedores.find(r => r.id === c.indicadoId);
+        const clientesRes = await fetch(`${FIREBASE_DB}/revendedores/${c.indicadoId}/clientes.json?shallow=true`);
+        const clientesData = await clientesRes.json();
+        const numClientes = clientesData ? Object.keys(clientesData).length : 0;
+        const mesmoIp = indicado && rev.cadastroIp && indicado.cadastroIp && indicado.cadastroIp === rev.cadastroIp;
+        return `
+          <div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0;">
+            <span>${c.indicadoNome} ${mesmoIp ? '<span title="Cadastrado no mesmo IP de quem indicou" style="color:var(--warn);">⚠️ mesmo IP</span>' : ''} <span style="color:var(--text-muted);">— ${numClientes} cliente(s) cadastrado(s)</span></span>
+            <span class="mono">R$ ${c.valor.toFixed(2)}</span>
+          </div>
+        `;
+      }));
+
+      return `
+        <div class="lista-item" style="flex-direction:column; align-items:stretch; padding:14px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:600;">${rev.nome}</div>
+            <div class="mono" style="color:var(--ok); font-weight:600;">R$ ${totalDele.toFixed(2)}</div>
+          </div>
+          <div style="font-size:12px; color:var(--text-muted); margin:4px 0;">
+            🔑 Chave PIX: ${chavePix ? `<span class="mono">${chavePix}</span>` : '<span style="color:var(--danger);">não cadastrada</span>'}
+          </div>
+          <div style="background:var(--surface-2); border-radius:6px; padding:8px 10px; margin-top:4px;">
+            ${detalhesIndicados.join('')}
+          </div>
+          <button class="btn" style="margin-top:8px; padding:8px 12px; font-size:12px; align-self:flex-start;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${totalDele})">💵 Confirmar pagamento</button>
+        </div>
+      `;
+    }));
+
+    container.innerHTML = linhas.join('');
+  }
+
+  async function abrirRevendedores() {
+    const [revRes, comRes] = await Promise.all([
+      fetch(`${FIREBASE_DB}/revendedores.json`),
+      fetch(`${FIREBASE_DB}/comissoes.json`)
+    ]);
+    const revendedoresData = await revRes.json() || {};
+    const comissoesData = await comRes.json() || {};
+    ultimaListaRevendedores = Object.entries(revendedoresData).map(([id, r]) => ({ id, ...r }));
+    ultimaListaComissoes = Object.entries(comissoesData).map(([id, c]) => ({ id, ...c }));
+
+    document.getElementById('busca-revendedores').value = '';
+    renderizarListaRevendedoresMaster();
+    document.getElementById('overlay-revendedores').classList.add('open');
+  }
+  function fecharRevendedores() {
+    document.getElementById('overlay-revendedores').classList.remove('open');
+  }
+
+  function renderizarListaRevendedoresMaster() {
+    const busca = document.getElementById('busca-revendedores').value.toLowerCase();
+    const listaFiltrada = ultimaListaRevendedores.filter(rev =>
+      rev.nome?.toLowerCase().includes(busca) || rev.email?.toLowerCase().includes(busca)
+    );
+
+    const totalPendenteGeral = ultimaListaComissoes
+      .filter(c => c.status === 'pendente')
+      .reduce((s, c) => s + c.valor, 0);
+    document.getElementById('total-pendente-geral').textContent = `R$ ${totalPendenteGeral.toFixed(2)}`;
+
+    const container = document.getElementById('lista-revendedores-master');
+    container.innerHTML = listaFiltrada.map(rev => {
+      const indicados = ultimaListaRevendedores.filter(r => r.indicadoPor === rev.id);
+      const comissoesDele = ultimaListaComissoes.filter(c => c.revendedorId === rev.id);
+      const pendente = comissoesDele.filter(c => c.status === 'pendente').reduce((s, c) => s + c.valor, 0);
+      const statusAssinatura = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa' : (rev.assinaturaStatus === 'teste' && rev.testeAte > Date.now() ? 'teste' : 'vencida');
+      const corStatus = statusAssinatura === 'ativa' ? 'var(--ok)' : statusAssinatura === 'teste' ? '#60A5FA' : 'var(--danger)';
+
+      return `
+        <div class="lista-item" style="flex-direction:column; align-items:stretch; padding:14px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:600;">${rev.nome} <span style="font-size:11px; color:${corStatus}; font-weight:500;">● ${statusAssinatura}</span></div>
+              <div style="font-size:12px; color:var(--text-muted);">${rev.email} · ${indicados.length} indicado(s)</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12px; color:var(--text-muted);">Comissão pendente</div>
+              <div class="mono" style="color:var(--ok); font-weight:600;">R$ ${pendente.toFixed(2)}</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            ${pendente > 0 ? `<button class="btn" style="padding:8px 12px; font-size:12px;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${pendente})">💵 Pagar tudo</button>` : ''}
+            ${indicados.length > 0 ? `<button class="btn" style="padding:8px 12px; font-size:12px;" onclick="toggleDetalheIndicados('${rev.id}')">🔍 Ver indicados</button>` : ''}
+            <button class="btn" style="padding:8px 12px; font-size:12px;" onclick="abrirDetalheRevendedor('${rev.id}')">✏️ Ver/editar</button>
+          </div>
+          <div id="detalhe-indicados-${rev.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);"></div>
+        </div>
+      `;
+    }).join('') || '<div style="color:var(--text-muted); font-size:13px;">Nenhum revendedor encontrado.</div>';
+  }
+
+  function toggleDetalheIndicados(revId) {
+    const container = document.getElementById(`detalhe-indicados-${revId}`);
+    const abrindo = container.style.display === 'none';
+    document.querySelectorAll('[id^="detalhe-indicados-"]').forEach(el => el.style.display = 'none');
+    if (!abrindo) return;
+
+    const indicados = ultimaListaRevendedores.filter(r => r.indicadoPor === revId);
+    container.style.display = 'block';
+    container.innerHTML = indicados.map(ind => {
+      const comissaoDele = ultimaListaComissoes.find(c => c.indicadoId === ind.id && c.status === 'pendente');
+      const statusAssinatura = (ind.assinaturaStatus === 'ativa' && ind.pagoAte > Date.now()) ? 'mensalidade em dia' : (ind.assinaturaStatus === 'teste' ? 'em teste' : 'mensalidade vencida');
+      return `
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding:5px 0;">
+          <span>${ind.nome} <span style="color:var(--text-muted);">— ${statusAssinatura}</span></span>
+          <span class="mono" style="color:var(--text-muted);">${comissaoDele ? 'R$ ' + comissaoDele.valor.toFixed(2) + ' pendente' : '—'}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function abrirDetalheRevendedor(revendedorId) {
+    const rev = ultimaListaRevendedores.find(r => r.id === revendedorId);
+    if (!rev) return;
+    document.getElementById('det-revendedor-id').value = rev.id;
+    document.getElementById('det-nome').value = rev.nome || '';
+    document.getElementById('det-email').value = rev.email || '';
+
+    const status = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa'
+      : (rev.assinaturaStatus === 'teste' && rev.testeAte > Date.now() ? 'teste' : 'vencida/inativa');
+    const pagoAteTexto = rev.pagoAte ? new Date(rev.pagoAte).toLocaleDateString('pt-BR') : '—';
+    const indicadoPorTexto = rev.indicadoPor ? (ultimaListaRevendedores.find(r => r.id === rev.indicadoPor)?.nome || rev.indicadoPor) : 'ninguém (direto)';
+    document.getElementById('det-status-info').innerHTML = `
+      Status: ${status}<br>
+      Pago até: ${pagoAteTexto}<br>
+      Cadastrado em: ${new Date(rev.criadoEm).toLocaleDateString('pt-BR')}<br>
+      Indicado por: ${indicadoPorTexto}<br>
+      UID: ${rev.id}
+    `;
+    document.getElementById('overlay-detalhe-revendedor').classList.add('open');
+  }
+  function fecharDetalheRevendedor() {
+    document.getElementById('overlay-detalhe-revendedor').classList.remove('open');
+  }
+  async function salvarDetalheRevendedor() {
+    const revendedorId = document.getElementById('det-revendedor-id').value;
+    const nome = document.getElementById('det-nome').value.trim();
+    const email = document.getElementById('det-email').value.trim();
+    if (!nome || !email) { alert('Preenche nome e e-mail.'); return; }
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerenciar-revendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ acao: 'editar', revendedorId, nome, email })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      fecharDetalheRevendedor();
+      await abrirRevendedores();
+      alert('✅ Dados atualizados!');
     } catch (err) {
-      let mensagem = 'Não deu pra criar a conta.';
-      if (err.code === 'auth/email-already-in-use') mensagem = 'Já existe uma conta com esse e-mail.';
-      if (err.code === 'auth/invalid-email') mensagem = 'E-mail inválido.';
-      if (err.code === 'auth/weak-password') mensagem = 'Senha muito fraca.';
-      erroEl.textContent = mensagem;
-      erroEl.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'Criar minha conta';
+      alert('Erro ao salvar.');
     }
   }
+  async function excluirRevendedor() {
+    const revendedorId = document.getElementById('det-revendedor-id').value;
+    const nome = document.getElementById('det-nome').value;
+    if (!confirm(`Excluir "${nome}" definitivamente? Isso apaga o login dele E todos os clientes, servidores e dados que ele cadastrou. Não pode ser desfeito.`)) return;
+    if (!confirm('Tem certeza mesmo? Essa é sua última chance de cancelar.')) return;
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerenciar-revendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ acao: 'excluir', revendedorId })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      fecharDetalheRevendedor();
+      await abrirRevendedores();
+      alert('Revendedor excluído.');
+    } catch (err) {
+      alert('Erro ao excluir.');
+    }
+  }
+
+  function abrirPagarComissao(revendedorId, nome, valorTotal) {
+    document.getElementById('pagar-revendedor-id').value = revendedorId;
+    document.getElementById('pagar-codigo-pix').value = '';
+    document.getElementById('pagar-resumo').innerHTML = `Marcar <b>R$ ${valorTotal.toFixed(2)}</b> em comissões pendentes de <b>${nome}</b> como pago.`;
+    document.getElementById('overlay-pagar-comissao').classList.add('open');
+  }
+  function fecharPagarComissao() {
+    document.getElementById('overlay-pagar-comissao').classList.remove('open');
+  }
+  async function confirmarPagarComissao() {
+    const revendedorId = document.getElementById('pagar-revendedor-id').value;
+    const codigoPix = document.getElementById('pagar-codigo-pix').value.trim();
+
+    const res = await fetch(`${FIREBASE_DB}/comissoes.json`);
+    const data = await res.json() || {};
+    const pendentes = Object.entries(data).filter(([, c]) => c.revendedorId === revendedorId && c.status === 'pendente');
+
+    await Promise.all(pendentes.map(([id]) =>
+      fetch(`${FIREBASE_DB}/comissoes/${id}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'pago', dataPagamento: Date.now(), codigoPix: codigoPix || null })
+      })
+    ));
+
+    fecharPagarComissao();
+    if (document.getElementById('overlay-comissionamento').classList.contains('open')) {
+      await abrirComissionamento();
+    } else {
+      await abrirRevendedores();
+    }
+    alert(`✅ ${pendentes.length} comissão(ões) marcada(s) como paga(s)!`);
+  }
+
+  // ---- Financeiro ----
+  let financeiroRegistros = [];
+  function caminhoFinanceiro() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/financeiro`;
+  }
+  async function registrarFinanceiro(cliente, valor, tipo) {
+    await fetch(`${caminhoFinanceiro()}.json`, {
+      method: 'POST',
+      body: JSON.stringify({
+        clienteNome: cliente.nome,
+        servidor: cliente.servidor || '—',
+        valor: Number(valor) || 0,
+        tipo,
+        data: Date.now()
+      })
+    });
+  }
+  function chaveMes(timestamp) {
+    const d = new Date(timestamp);
+    return `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  }
+  async function abrirFinanceiro() {
+    const res = await fetch(`${caminhoFinanceiro()}.json`);
+    const data = await res.json() || {};
+    financeiroRegistros = Object.entries(data).map(([id, r]) => ({ id, ...r })).sort((a,b) => b.data - a.data);
+
+    const meses = [...new Set(financeiroRegistros.map(r => chaveMes(r.data)))];
+    document.getElementById('fin-filtro-mes').innerHTML = '<option value="todos">Todos os meses</option>' +
+      meses.map(m => `<option value="${m}">${m}</option>`).join('');
+
+    renderizarFinanceiro();
+    document.getElementById('overlay-financeiro').classList.add('open');
+  }
+  function fecharFinanceiro() {
+    document.getElementById('overlay-financeiro').classList.remove('open');
+  }
+  function renderizarFinanceiro() {
+    const mesFiltro = document.getElementById('fin-filtro-mes').value;
+    let registros = financeiroRegistros;
+    if (mesFiltro !== 'todos') registros = registros.filter(r => chaveMes(r.data) === mesFiltro);
+
+    const total = registros.reduce((s, r) => s + r.valor, 0);
+    document.getElementById('fin-total').textContent = `R$ ${total.toFixed(2)}`;
+    document.getElementById('fin-qtd').textContent = registros.length;
+
+    const container = document.getElementById('lista-financeiro');
+    container.innerHTML = registros.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum registro ainda.</div>'
+      : registros.map(r => `
+        <div class="lista-item">
+          <div>
+            <div>${r.clienteNome}</div>
+            <div style="font-size:12px; color:var(--text-muted);">${r.tipo === 'cadastro' ? 'Cadastro' : 'Renovação'} · ${r.servidor} · ${new Date(r.data).toLocaleDateString('pt-BR')}</div>
+          </div>
+          <span class="mono">R$ ${Number(r.valor).toFixed(2)}</span>
+        </div>
+      `).join('');
+  }
+
+  // ---- Mensagens ----
+  const TEMPLATES_PADRAO = {
+    msg7dias: 'Olá {nome}! Passando pra lembrar que seu plano vence em {dias_restantes} dias ({data_vencimento}). Valor: R$ {valor_plano}.',
+    msg3dias: 'Olá {nome}! Seu plano vence em {dias_restantes} dias ({data_vencimento}). Valor: R$ {valor_plano}. Quer renovar agora?',
+    msgVencimento: 'Olá {nome}! Seu plano vence hoje ({data_vencimento}). Valor: R$ {valor_plano}. Renova pra não perder o acesso?',
+    msgVencido: 'Olá {nome}! Seu plano venceu em {data_vencimento} e está com pagamento pendente. Valor: R$ {valor_plano}. Vamos regularizar hoje pra não perder o acesso?',
+    msgManual: 'Olá {nome}! Passando aqui sobre o seu plano, vencimento em {data_vencimento}. Qualquer coisa me chama!',
+    msgTesteAcabando: 'Olá {nome}! Seu teste está acabando em breve. Gostou? Fala com a gente pra virar cliente oficial!',
+    msgTesteAcabou: 'Olá {nome}! Seu teste terminou. Fala com a gente pra ativar seu plano oficial!',
+    msgBemVindoOficial: 'Olá {nome}! Seu plano foi ativado com sucesso ✅\nVencimento: {data_vencimento}\nValor: R$ {valor_plano}\nSeja bem-vindo(a)!',
+    emailAssunto: 'Seu plano vence em breve',
+    emailCorpo: 'Olá {nome},\n\nSeu plano vence em {data_vencimento}. Valor: R$ {valor_plano}.\n\nQualquer dúvida, chama no WhatsApp.'
+  };
+
+  async function abrirMensagens() {
+    const res = await fetch(`${caminhoConfig()}/templates.json`);
+    const templates = await res.json() || {};
+    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','emailAssunto','emailCorpo'];
+    chaves.forEach(chave => {
+      document.getElementById(`tpl-${chave}`).value = templates[chave] || TEMPLATES_PADRAO[chave] || '';
+    });
+    document.getElementById('overlay-mensagens').classList.add('open');
+  }
+  function fecharMensagens() {
+    document.getElementById('overlay-mensagens').classList.remove('open');
+  }
+  async function salvarMensagens() {
+    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','emailAssunto','emailCorpo'];
+    const templates = {};
+    chaves.forEach(chave => {
+      templates[chave] = document.getElementById(`tpl-${chave}`).value;
+    });
+    await fetch(`${caminhoConfig()}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ templates })
+    });
+    fecharMensagens();
+    alert('Mensagens salvas!');
+  }
+
+  // ---- Personalização ----
+  async function abrirPersonalizacao() {
+    const res = await fetch(`${caminhoConfig()}/marca.json`);
+    const marca = await res.json() || {};
+    document.getElementById('pz-nome').value = marca.nome || '';
+    document.getElementById('pz-logo').value = marca.logoUrl || '';
+    document.getElementById('pz-cor').value = marca.corPrimaria || '#34D399';
+    document.getElementById('pz-texto-notif').value = marca.textoBotaoNotificacao || 'Ativar notificações';
+    document.getElementById('pz-texto-suporte').value = marca.textoBotaoSuporte || '💬 Falar com o suporte';
+    document.getElementById('overlay-personalizacao').classList.add('open');
+  }
+  function fecharPersonalizacao() {
+    document.getElementById('overlay-personalizacao').classList.remove('open');
+  }
+  async function salvarPersonalizacao() {
+    const marca = {
+      nome: document.getElementById('pz-nome').value.trim(),
+      logoUrl: document.getElementById('pz-logo').value.trim(),
+      corPrimaria: document.getElementById('pz-cor').value,
+      textoBotaoNotificacao: document.getElementById('pz-texto-notif').value.trim() || 'Ativar notificações',
+      textoBotaoSuporte: document.getElementById('pz-texto-suporte').value.trim() || '💬 Falar com o suporte'
+    };
+    await fetch(`${caminhoConfig()}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ marca })
+    });
+    fecharPersonalizacao();
+    alert('Personalização salva!');
+  }
+
+  // ---- Configurações ----
+  function caminhoConfig() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/config`;
+  }
+  async function abrirConfiguracoes() {
+    const res = await fetch(`${caminhoConfig()}.json`);
+    const config = await res.json() || {};
+    document.getElementById('cfg-whatsapp').value = config.whatsappSuporte || '';
+    document.getElementById('cfg-pix').value = config.chavePix || '';
+    document.getElementById('overlay-configuracoes').classList.add('open');
+  }
+  function fecharConfiguracoes() {
+    document.getElementById('overlay-configuracoes').classList.remove('open');
+  }
+  async function salvarConfiguracoes() {
+    const whatsapp = document.getElementById('cfg-whatsapp').value.replace(/\D/g, '');
+    if (!whatsapp) { alert('Preenche o número.'); return; }
+    const chavePix = document.getElementById('cfg-pix').value.trim();
+    await fetch(`${caminhoConfig()}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ whatsappSuporte: whatsapp, chavePix })
+    });
+    fecharConfiguracoes();
+    alert('Configurações salvas!');
+  }
+
+  // ---- Renovação ----
+  let diasRenovacao = 30;
+  let baseRenovacao = 'vencimento';
+  let clienteRenovandoId = null;
+
+  function abrirRenovacao(id) {
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+    clienteRenovandoId = id;
+    document.getElementById('renovar-cliente-id').value = id;
+    document.getElementById('renovar-data-manual').value = '';
+    setDiasRenovacao(30);
+    setBaseRenovacao('vencimento');
+    document.getElementById('renovar-sync-bloco').style.display = cliente.m3uLink ? 'block' : 'none';
+    document.getElementById('overlay-renovar').classList.add('open');
+  }
+  function fecharRenovacao() {
+    document.getElementById('overlay-renovar').classList.remove('open');
+  }
+  function setDiasRenovacao(dias) {
+    diasRenovacao = dias;
+    document.querySelectorAll('.dia-chip').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.dias) === dias);
+    });
+    document.getElementById('renovar-data-manual').value = '';
+    atualizarPreviewRenovacao();
+  }
+  function setBaseRenovacao(tipo) {
+    baseRenovacao = tipo;
+    document.getElementById('base-vencimento').classList.toggle('active', tipo === 'vencimento');
+    document.getElementById('base-hoje').classList.toggle('active', tipo === 'hoje');
+    atualizarPreviewRenovacao();
+  }
+  function calcularNovoVencimento() {
+    const dataManual = document.getElementById('renovar-data-manual').value;
+    if (dataManual) return new Date(dataManual + 'T12:00:00').getTime();
+
+    const cliente = clientes.find(c => c.id === clienteRenovandoId);
+    if (!cliente) return null;
+    const agora = Date.now();
+    const base = baseRenovacao === 'hoje' ? agora : Math.max(cliente.vencimento, agora);
+    return base + diasRenovacao * 24 * 60 * 60 * 1000;
+  }
+  function atualizarPreviewRenovacao() {
+    const novoVencimento = calcularNovoVencimento();
+    document.getElementById('preview-vencimento').textContent = novoVencimento
+      ? new Date(novoVencimento).toLocaleDateString('pt-BR')
+      : '—';
+  }
+
+  async function confirmarRenovacao() {
+    const id = document.getElementById('renovar-cliente-id').value;
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+
+    const novoVencimento = calcularNovoVencimento();
+    if (!novoVencimento) { alert('Escolhe os dias ou uma data.'); return; }
+
+    await fetch(`${caminhoClientes()}/${id}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ vencimento: novoVencimento, emTeste: false })
+    });
+
+    fecharRenovacao();
+    await registrarFinanceiro({ nome: cliente.nome, servidor: cliente.servidor }, cliente.planoValor, 'renovacao');
+    await carregarClientes();
+
+    const mensagem = `Olá ${cliente.nome}! Seu plano foi renovado com sucesso ✅\nNovo vencimento: ${new Date(novoVencimento).toLocaleDateString('pt-BR')}\nValor: R$ ${Number(cliente.planoValor||0).toFixed(2)}\nObrigado pela confiança!`;
+    window.open(`https://wa.me/${cliente.whatsapp}?text=${encodeURIComponent(mensagem)}`, '_blank');
+  }
+
+  async function sincronizarRenovacao() {
+    const id = document.getElementById('renovar-cliente-id').value;
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente || !cliente.m3uLink) return;
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/consultar-iptv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ link: cliente.m3uLink })
+      });
+      const data = await res.json();
+
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      if (!data.vencimento) { alert('O painel não retornou uma data de vencimento.'); return; }
+      if (data.vencimento <= cliente.vencimento) {
+        alert('Consultei o painel, mas a data lá está igual ou anterior à que já temos aqui — nenhuma renovação nova encontrada.');
+        return;
+      }
+
+      await fetch(`${caminhoClientes()}/${id}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ vencimento: data.vencimento, emTeste: false })
+      });
+
+      fecharRenovacao();
+      await registrarFinanceiro({ nome: cliente.nome, servidor: cliente.servidor }, cliente.planoValor, 'renovacao');
+      await carregarClientes();
+
+      const mensagem = `Olá ${cliente.nome}! Seu plano foi renovado com sucesso ✅\nNovo vencimento: ${new Date(data.vencimento).toLocaleDateString('pt-BR')}\nValor: R$ ${Number(cliente.planoValor||0).toFixed(2)}\nObrigado pela confiança!`;
+      window.open(`https://wa.me/${cliente.whatsapp}?text=${encodeURIComponent(mensagem)}`, '_blank');
+
+      alert(`✅ Renovação detectada! Novo vencimento: ${new Date(data.vencimento).toLocaleDateString('pt-BR')}`);
+    } catch (err) {
+      alert('Erro ao sincronizar com o painel.');
+    }
+  }
+
+  async function enviarPushManual(id) {
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/notificar-manual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ clienteId: id })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      alert(data.enviado ? 'Push enviado!' : 'Não enviado: ' + (data.motivo || 'erro desconhecido'));
+    } catch (err) {
+      alert('Erro ao enviar push.');
+    }
+  }
+
+  async function excluirCliente(id) {
+    if (!acessoLiberado) { alert('Seu período de teste terminou. Assine pra voltar a gerenciar clientes.'); return; }
+    if (!confirm('Excluir esse cliente?')) return;
+    await fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
+    await carregarClientes();
+  }
+
+  document.getElementById('remkt-status').addEventListener('change', atualizarContagemRemarketing);
+  document.getElementById('fin-filtro-mes').addEventListener('change', renderizarFinanceiro);
+
+  document.getElementById('renovar-data-manual').addEventListener('change', () => {
+    document.querySelectorAll('.dia-chip').forEach(el => el.classList.remove('active'));
+    atualizarPreviewRenovacao();
+  });
 </script>
 
 </body>
