@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <style>
   :root {
     --bg: #0B0F14; --surface: #131A22; --surface-2: #1B232D; --border: #232C37;
@@ -127,6 +128,8 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirFinanceiro();">💰 Financeiro</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirSuporte();">🎫 Suporte</button>
+        <button class="btn" id="btn-menu-chamados" style="display:none; text-align:left;" onclick="fecharMenu(); abrirChamadosAdmin();">🎫 Chamados</button>
         <button class="btn" id="btn-menu-revendedores" style="display:none; text-align:left;" onclick="fecharMenu(); abrirRevendedores();">👥 Revendedores</button>
         <button class="btn" id="btn-menu-comissionamento" style="display:none; text-align:left;" onclick="fecharMenu(); abrirComissionamento();">💰 Comissionamento</button>
         <button class="btn" id="btn-menu-config-plataforma" style="display:none; text-align:left;" onclick="fecharMenu(); abrirConfigPlataforma();">🔧 Configurações da Plataforma</button>
@@ -160,6 +163,11 @@
         <div class="label">Vencidos</div>
         <div class="value mono" id="stat-vencidos">0</div>
       </div>
+    </div>
+
+    <div id="banner-notif-revendedor" style="display:none; border:1px solid rgba(96,165,250,0.4); background:rgba(96,165,250,0.1); border-radius:10px; padding:12px 16px; margin-bottom:14px; font-size:13px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <span style="color:#60A5FA;">🔔 Ative as notificações pra receber avisos (tipo confirmação de comissão paga) direto no navegador.</span>
+      <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="ativarNotificacoesRevendedor()">Ativar notificações</button>
     </div>
 
     <div id="banner-acesso" style="display:none; border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:13px;"></div>
@@ -538,6 +546,73 @@
   </div>
 </div>
 
+<div class="overlay" id="overlay-suporte">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header"><h2>🎫 Suporte</h2><button class="modal-close-x" onclick="fecharSuporte()">✕</button></div>
+
+    <div id="suporte-form-novo">
+      <div class="field">
+        <label>Assunto</label>
+        <select id="sup-assunto">
+          <option value="Comissão">Comissão</option>
+          <option value="Melhoria">Sugestão de melhoria</option>
+          <option value="Cadastro">Problema no cadastro</option>
+          <option value="Problema técnico">Problema técnico</option>
+          <option value="Dúvida geral">Dúvida geral</option>
+          <option value="Outros">Outros</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Mensagem</label>
+        <textarea id="sup-mensagem" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;" placeholder="Descreve o que você precisa..."></textarea>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="abrirNovoChamado()">Abrir chamado</button>
+    </div>
+
+    <h3 style="font-size:14px; margin-top:24px;">Meus chamados</h3>
+    <div id="lista-meus-chamados" style="max-height:280px; overflow-y:auto; margin-top:10px;"></div>
+
+    <div class="modal-actions"><button class="btn" onclick="fecharSuporte()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-chamado-detalhe">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header"><h2 id="chamado-detalhe-titulo">Chamado</h2><button class="modal-close-x" onclick="fecharChamadoDetalhe()">✕</button></div>
+    <input type="hidden" id="chamado-detalhe-id">
+    <div id="chamado-detalhe-thread" style="max-height:280px; overflow-y:auto; margin-bottom:14px;"></div>
+    <div class="field">
+      <textarea id="chamado-detalhe-resposta" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;" placeholder="Escreva uma resposta..."></textarea>
+    </div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <select id="chamado-detalhe-status" style="font-size:12px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text);" onchange="mudarStatusChamado()">
+        <option value="aberto">Aberto</option>
+        <option value="respondido">Respondido</option>
+        <option value="fechado">Fechado</option>
+      </select>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" onclick="fecharChamadoDetalhe()">Fechar janela</button>
+        <button class="btn btn-primary" onclick="responderChamado()">Responder</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-chamados-admin">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>🎫 Chamados</h2><button class="modal-close-x" onclick="fecharChamadosAdmin()">✕</button></div>
+    <div class="field">
+      <select id="chamados-admin-filtro">
+        <option value="abertos">Abertos + Respondidos</option>
+        <option value="todos">Todos</option>
+        <option value="fechado">Só fechados</option>
+      </select>
+    </div>
+    <div id="lista-chamados-admin" style="max-height:400px; overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharChamadosAdmin()">Fechar</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay-comissionamento">
   <div class="modal" style="max-width:640px;">
     <div class="modal-header"><h2>💰 Comissionamento</h2><button class="modal-close-x" onclick="fecharComissionamento()">✕</button></div>
@@ -554,6 +629,11 @@
       <input type="date" id="com-filtro-inicio" style="font-size:12px;">
       <span style="color:var(--text-muted); font-size:12px;">até</span>
       <input type="date" id="com-filtro-fim" style="font-size:12px;">
+      <select id="com-filtro-status" style="font-size:12px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--text);">
+        <option value="pendente">Pendentes</option>
+        <option value="pago">Pagas</option>
+        <option value="todos">Todas</option>
+      </select>
       <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="renderizarComissionamento()">Filtrar</button>
     </div>
 
@@ -773,16 +853,74 @@
     carregarClientes();
     carregarIndicados();
     verificarAcesso();
+    verificarNotificacaoRevendedor();
 
     if (uidRevendedor === MASTER_UID) {
       document.getElementById('btn-criar-revendedor').style.display = 'inline-block';
       document.getElementById('btn-menu-revendedores').style.display = 'block';
       document.getElementById('btn-menu-comissionamento').style.display = 'block';
       document.getElementById('btn-menu-config-plataforma').style.display = 'block';
+      document.getElementById('btn-menu-chamados').style.display = 'block';
     }
   });
 
   let acessoLiberado = true;
+
+  // TODO: já é a mesma VAPID key usada no meu-plano.html (mesmo projeto Firebase)
+  const VAPID_KEY = "BObwpR56HyvA-01i2B5xy9-fXh6aCovO9gPTGe1_wMSbUU247JQKbP3pH13miH_IKXf1UhfHSe1eiFqJXNjOGwE";
+  let escutaForegroundRevendedorAtiva = false;
+
+  function configurarEscutaForegroundRevendedor() {
+    if (escutaForegroundRevendedorAtiva) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    try {
+      const messagingForeground = firebase.messaging();
+      messagingForeground.onMessage((payload) => {
+        const titulo = payload.data?.title || 'Aviso';
+        const corpo = payload.data?.body || '';
+        const notif = new Notification(titulo, { body: corpo });
+        notif.onclick = () => { if (payload.data?.link) window.open(payload.data.link, '_blank'); };
+      });
+      escutaForegroundRevendedorAtiva = true;
+    } catch (err) {}
+  }
+
+  async function verificarNotificacaoRevendedor() {
+    const res = await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`);
+    const meuCadastro = await res.json() || {};
+    const banner = document.getElementById('banner-notif-revendedor');
+    if (meuCadastro.notificacaoAtiva) {
+      banner.style.display = 'none';
+      configurarEscutaForegroundRevendedor();
+    } else {
+      banner.style.display = 'flex';
+    }
+  }
+
+  async function ativarNotificacoesRevendedor() {
+    try {
+      const permissao = await Notification.requestPermission();
+      if (permissao !== 'granted') {
+        alert('Você precisa permitir as notificações no navegador.');
+        return;
+      }
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const messaging = firebase.messaging();
+      const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+
+      await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ fcmToken: token, notificacaoAtiva: true })
+      });
+
+      document.getElementById('banner-notif-revendedor').style.display = 'none';
+      configurarEscutaForegroundRevendedor();
+      alert('✅ Notificações ativadas!');
+    } catch (err) {
+      alert('Não deu pra ativar as notificações agora.');
+    }
+  }
+
 
   async function verificarAcesso() {
     if (uidRevendedor === MASTER_UID) return; // admin nunca é restrito
@@ -1916,6 +2054,7 @@
   async function renderizarComissionamento() {
     const inicioInput = document.getElementById('com-filtro-inicio').value;
     const fimInput = document.getElementById('com-filtro-fim').value;
+    const statusFiltro = document.getElementById('com-filtro-status').value;
     const inicio = inicioInput ? new Date(inicioInput + 'T00:00:00').getTime() : 0;
     const fim = fimInput ? new Date(fimInput + 'T23:59:59').getTime() : Date.now();
 
@@ -1924,20 +2063,23 @@
       document.getElementById('ciclo-comissionamento-label').textContent = 'Período filtrado manualmente';
     }
 
-    const comissoesNoPeriodo = ultimaListaComissoes.filter(c => c.data >= inicio && c.data <= fim && c.status === 'pendente');
+    const comissoesNoPeriodo = ultimaListaComissoes.filter(c =>
+      c.data >= inicio && c.data <= fim && (statusFiltro === 'todos' || c.status === statusFiltro)
+    );
     const totalPeriodo = comissoesNoPeriodo.reduce((s, c) => s + c.valor, 0);
-    document.getElementById('ciclo-comissionamento-total').textContent = `R$ ${totalPeriodo.toFixed(2)}`;
+    const labelTotal = statusFiltro === 'pago' ? 'Total pago no período' : statusFiltro === 'todos' ? 'Total (pendente + pago)' : 'Total pendente';
+    document.getElementById('ciclo-comissionamento-total').innerHTML = `<span style="font-size:12px; color:var(--text-muted); display:block;">${labelTotal}</span>R$ ${totalPeriodo.toFixed(2)}`;
 
-    // Só entram revendedores que têm pelo menos 1 indicado E algo pendente no período
+    // Só entram revendedores que têm pelo menos 1 indicado E algo no período filtrado
     const revendedoresComPendencia = ultimaListaRevendedores.filter(rev => {
       const temIndicado = ultimaListaRevendedores.some(r => r.indicadoPor === rev.id);
-      const temPendenteNoPeriodo = comissoesNoPeriodo.some(c => c.revendedorId === rev.id);
-      return temIndicado && temPendenteNoPeriodo;
+      const temNoPeriodo = comissoesNoPeriodo.some(c => c.revendedorId === rev.id);
+      return temIndicado && temNoPeriodo;
     });
 
     const container = document.getElementById('lista-comissionamento');
     if (revendedoresComPendencia.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhuma comissão pendente nesse período.</div>';
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Nenhuma comissão encontrada nesse período/status.</div>';
       return;
     }
 
@@ -1946,6 +2088,7 @@
     const linhas = await Promise.all(revendedoresComPendencia.map(async (rev) => {
       const comissoesDele = comissoesNoPeriodo.filter(c => c.revendedorId === rev.id);
       const totalDele = comissoesDele.reduce((s, c) => s + c.valor, 0);
+      const temAlgumaPendente = comissoesDele.some(c => c.status === 'pendente');
 
       const [pixRes] = await Promise.all([
         fetch(`${FIREBASE_DB}/revendedores/${rev.id}/config/chavePix.json`)
@@ -1960,7 +2103,7 @@
         const mesmoIp = indicado && rev.cadastroIp && indicado.cadastroIp && indicado.cadastroIp === rev.cadastroIp;
         return `
           <div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0;">
-            <span>${c.indicadoNome} ${mesmoIp ? '<span title="Cadastrado no mesmo IP de quem indicou" style="color:var(--warn);">⚠️ mesmo IP</span>' : ''} <span style="color:var(--text-muted);">— ${numClientes} cliente(s) cadastrado(s)</span></span>
+            <span>${c.indicadoNome} ${mesmoIp ? '<span title="Cadastrado no mesmo IP de quem indicou" style="color:var(--warn);">⚠️ mesmo IP</span>' : ''} <span style="color:var(--text-muted);">— ${numClientes} cliente(s) cadastrado(s)</span> <span class="badge ${c.status === 'pago' ? 'ativo' : 'inativo'}" style="margin-left:6px;">${c.status}</span></span>
             <span class="mono">R$ ${c.valor.toFixed(2)}</span>
           </div>
         `;
@@ -1978,7 +2121,7 @@
           <div style="background:var(--surface-2); border-radius:6px; padding:8px 10px; margin-top:4px;">
             ${detalhesIndicados.join('')}
           </div>
-          <button class="btn" style="margin-top:8px; padding:8px 12px; font-size:12px; align-self:flex-start;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${totalDele})">💵 Confirmar pagamento</button>
+          ${temAlgumaPendente ? `<button class="btn" style="margin-top:8px; padding:8px 12px; font-size:12px; align-self:flex-start;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${totalDele})">💵 Confirmar pagamento</button>` : ''}
         </div>
       `;
     }));
@@ -2147,24 +2290,31 @@
     const revendedorId = document.getElementById('pagar-revendedor-id').value;
     const codigoPix = document.getElementById('pagar-codigo-pix').value.trim();
 
-    const res = await fetch(`${FIREBASE_DB}/comissoes.json`);
-    const data = await res.json() || {};
-    const pendentes = Object.entries(data).filter(([, c]) => c.revendedorId === revendedorId && c.status === 'pendente');
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/pagar-comissao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ revendedorId, codigoPix: codigoPix || null })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
 
-    await Promise.all(pendentes.map(([id]) =>
-      fetch(`${FIREBASE_DB}/comissoes/${id}.json`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'pago', dataPagamento: Date.now(), codigoPix: codigoPix || null })
-      })
-    ));
+      fecharPagarComissao();
+      if (document.getElementById('overlay-comissionamento').classList.contains('open')) {
+        await abrirComissionamento();
+      } else {
+        await abrirRevendedores();
+      }
 
-    fecharPagarComissao();
-    if (document.getElementById('overlay-comissionamento').classList.contains('open')) {
-      await abrirComissionamento();
-    } else {
-      await abrirRevendedores();
+      const avisos = [];
+      if (data.emailEnviado) avisos.push('e-mail');
+      if (data.pushEnviado) avisos.push('push');
+      const avisoTexto = avisos.length > 0 ? ` O revendedor foi avisado por ${avisos.join(' e ')}.` : '';
+      alert(`✅ ${data.quantidade} comissão(ões) marcada(s) como paga(s)!${avisoTexto}`);
+    } catch (err) {
+      alert('Erro ao confirmar pagamento.');
     }
-    alert(`✅ ${pendentes.length} comissão(ões) marcada(s) como paga(s)!`);
   }
 
   // ---- Financeiro ----
@@ -2294,6 +2444,151 @@
     });
     fecharPersonalizacao();
     alert('Personalização salva!');
+  }
+
+  // ---- Suporte / Chamados ----
+  let chamadoAbertoId = null;
+  let chamadoAbertoParaAdmin = false;
+
+  function caminhoChamados() {
+    return `${FIREBASE_DB}/chamados`;
+  }
+
+  async function abrirSuporte() {
+    document.getElementById('sup-assunto').value = 'Comissão';
+    document.getElementById('sup-mensagem').value = '';
+    await carregarMeusChamados();
+    document.getElementById('overlay-suporte').classList.add('open');
+  }
+  function fecharSuporte() {
+    document.getElementById('overlay-suporte').classList.remove('open');
+  }
+
+  async function abrirNovoChamado() {
+    const assunto = document.getElementById('sup-assunto').value;
+    const mensagem = document.getElementById('sup-mensagem').value.trim();
+    if (!mensagem) { alert('Escreve a mensagem do chamado.'); return; }
+
+    await fetch(`${caminhoChamados()}.json`, {
+      method: 'POST',
+      body: JSON.stringify({
+        revendedorId: uidRevendedor,
+        revendedorNome: (await (await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}/nome.json`)).json()) || document.getElementById('email-usuario').textContent,
+        assunto,
+        status: 'aberto',
+        criadoEm: Date.now(),
+        mensagens: [{ autor: 'revendedor', texto: mensagem, data: Date.now() }]
+      })
+    });
+
+    document.getElementById('sup-mensagem').value = '';
+    await carregarMeusChamados();
+    alert('✅ Chamado aberto!');
+  }
+
+  async function carregarMeusChamados() {
+    const res = await fetch(`${caminhoChamados()}.json`);
+    const data = await res.json() || {};
+    const meus = Object.entries(data)
+      .filter(([, c]) => c.revendedorId === uidRevendedor)
+      .map(([id, c]) => ({ id, ...c }))
+      .sort((a,b) => b.criadoEm - a.criadoEm);
+
+    const container = document.getElementById('lista-meus-chamados');
+    container.innerHTML = meus.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum chamado ainda.</div>'
+      : meus.map(c => `
+        <div class="lista-item" style="cursor:pointer;" onclick="abrirChamadoDetalhe('${c.id}', false)">
+          <span>${c.assunto} <span style="font-size:11px; color:var(--text-muted);">— ${new Date(c.criadoEm).toLocaleDateString('pt-BR')}</span></span>
+          <span class="badge ${c.status === 'aberto' ? 'inativo' : c.status === 'respondido' ? 'ativo' : 'inativo'}">${c.status}</span>
+        </div>
+      `).join('');
+  }
+
+  async function abrirChamadoDetalhe(chamadoId, ehAdmin) {
+    chamadoAbertoId = chamadoId;
+    chamadoAbertoParaAdmin = ehAdmin;
+    const res = await fetch(`${caminhoChamados()}/${chamadoId}.json`);
+    const chamado = await res.json();
+    if (!chamado) return;
+
+    document.getElementById('chamado-detalhe-titulo').textContent = `${chamado.assunto} — ${chamado.revendedorNome}`;
+    document.getElementById('chamado-detalhe-id').value = chamadoId;
+    document.getElementById('chamado-detalhe-status').value = chamado.status;
+    document.getElementById('chamado-detalhe-status').style.display = ehAdmin ? 'block' : 'none';
+    document.getElementById('chamado-detalhe-resposta').value = '';
+
+    const thread = document.getElementById('chamado-detalhe-thread');
+    thread.innerHTML = (chamado.mensagens || []).map(m => `
+      <div style="margin-bottom:10px; padding:8px 10px; border-radius:8px; background:${m.autor === 'admin' ? 'rgba(52,211,153,0.1)' : 'var(--surface-2)'};">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:3px;">${m.autor === 'admin' ? '👑 Suporte' : chamado.revendedorNome} — ${new Date(m.data).toLocaleString('pt-BR')}</div>
+        <div style="font-size:13px;">${m.texto}</div>
+      </div>
+    `).join('');
+
+    document.getElementById('overlay-chamado-detalhe').classList.add('open');
+  }
+  function fecharChamadoDetalhe() {
+    document.getElementById('overlay-chamado-detalhe').classList.remove('open');
+  }
+
+  async function responderChamado() {
+    const texto = document.getElementById('chamado-detalhe-resposta').value.trim();
+    if (!texto) return;
+
+    const res = await fetch(`${caminhoChamados()}/${chamadoAbertoId}.json`);
+    const chamado = await res.json();
+    const mensagens = chamado.mensagens || [];
+    mensagens.push({ autor: chamadoAbertoParaAdmin ? 'admin' : 'revendedor', texto, data: Date.now() });
+
+    await fetch(`${caminhoChamados()}/${chamadoAbertoId}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        mensagens,
+        status: chamadoAbertoParaAdmin ? 'respondido' : 'aberto'
+      })
+    });
+
+    fecharChamadoDetalhe();
+    if (chamadoAbertoParaAdmin) await renderizarChamadosAdmin();
+    else await carregarMeusChamados();
+  }
+
+  async function mudarStatusChamado() {
+    const status = document.getElementById('chamado-detalhe-status').value;
+    await fetch(`${caminhoChamados()}/${chamadoAbertoId}.json`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  }
+
+  let ultimaListaChamados = [];
+  async function abrirChamadosAdmin() {
+    const res = await fetch(`${caminhoChamados()}.json`);
+    const data = await res.json() || {};
+    ultimaListaChamados = Object.entries(data).map(([id, c]) => ({ id, ...c })).sort((a,b) => b.criadoEm - a.criadoEm);
+    document.getElementById('chamados-admin-filtro').value = 'abertos';
+    renderizarChamadosAdmin();
+    document.getElementById('overlay-chamados-admin').classList.add('open');
+  }
+  function fecharChamadosAdmin() {
+    document.getElementById('overlay-chamados-admin').classList.remove('open');
+  }
+  function renderizarChamadosAdmin() {
+    const filtro = document.getElementById('chamados-admin-filtro').value;
+    let lista = ultimaListaChamados;
+    if (filtro === 'abertos') lista = lista.filter(c => c.status === 'aberto' || c.status === 'respondido');
+    if (filtro === 'fechado') lista = lista.filter(c => c.status === 'fechado');
+
+    const container = document.getElementById('lista-chamados-admin');
+    container.innerHTML = lista.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum chamado nesse filtro.</div>'
+      : lista.map(c => `
+        <div class="lista-item" style="cursor:pointer;" onclick="abrirChamadoDetalhe('${c.id}', true)">
+          <span>${c.revendedorNome} <span style="font-size:11px; color:var(--text-muted);">— ${c.assunto} · ${new Date(c.criadoEm).toLocaleDateString('pt-BR')}</span></span>
+          <span class="badge ${c.status === 'aberto' ? 'inativo' : c.status === 'respondido' ? 'ativo' : 'inativo'}">${c.status}</span>
+        </div>
+      `).join('');
   }
 
   // ---- Configurações ----
@@ -2462,6 +2757,7 @@
   }
 
   document.getElementById('remkt-status').addEventListener('change', atualizarContagemRemarketing);
+  document.getElementById('chamados-admin-filtro').addEventListener('change', renderizarChamadosAdmin);
   document.getElementById('fin-filtro-mes').addEventListener('change', renderizarFinanceiro);
 
   document.getElementById('renovar-data-manual').addEventListener('change', () => {
