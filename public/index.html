@@ -133,6 +133,7 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirSuporte();">🎫 Suporte</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirTutoriais();">🎬 Tutoriais</button>
         <button class="btn" id="btn-menu-chamados" style="display:none; text-align:left;" onclick="fecharMenu(); abrirChamadosAdmin();">🎫 Chamados</button>
         <button class="btn" id="btn-menu-revendedores" style="display:none; text-align:left;" onclick="fecharMenu(); abrirRevendedores();">👥 Revendedores</button>
         <button class="btn" id="btn-menu-comissionamento" style="display:none; text-align:left;" onclick="fecharMenu(); abrirComissionamento();">💰 Comissionamento</button>
@@ -555,6 +556,22 @@
   </div>
 </div>
 
+<div class="overlay" id="overlay-tutoriais">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>🎬 Tutoriais</h2><button class="modal-close-x" onclick="fecharTutoriais()">✕</button></div>
+
+    <div id="tutoriais-form-novo" style="display:none; background:var(--surface-2); border-radius:10px; padding:14px; margin-bottom:18px;">
+      <div class="field"><label>Título</label><input type="text" id="tut-titulo" placeholder="Como cadastrar um cliente"></div>
+      <div class="field"><label>Link do YouTube</label><input type="text" id="tut-url" placeholder="https://youtube.com/watch?v=..."></div>
+      <div class="field"><label>Descrição (opcional)</label><input type="text" id="tut-descricao" placeholder="Passo a passo rápido..."></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="adicionarTutorial()">Adicionar tutorial</button>
+    </div>
+
+    <div id="lista-tutoriais" style="max-height:420px; overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharTutoriais()">Fechar</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay-suporte">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header"><h2>🎫 Suporte</h2><button class="modal-close-x" onclick="fecharSuporte()">✕</button></div>
@@ -789,6 +806,18 @@
   const auth = firebase.auth();
   const FIREBASE_DB = firebaseConfig.databaseURL;
 
+  // As regras do Firebase agora exigem estar logado — mas fetch() puro não
+  // manda o token de autenticação sozinho. Essa função resolve isso,
+  // anexando o token automaticamente em toda chamada ao banco.
+  async function dbFetch(url, opcoes = {}) {
+    const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+    if (idToken) {
+      const separador = url.includes('?') ? '&' : '?';
+      url = `${url}${separador}auth=${idToken}`;
+    }
+    return fetch(url, opcoes);
+  }
+
   const MASTER_UID = 'G8SAyrR7fFcslRmSIBUosRwA6QF2';
   let uidRevendedor = null;
   let clientes = [];
@@ -833,7 +862,7 @@
     const ids = Array.from(selecionados);
     if (ids.length === 0) return;
     if (!confirm(`Excluir ${ids.length} cliente(s)? Isso não pode ser desfeito.`)) return;
-    await Promise.all(ids.map(id => fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' })));
+    await Promise.all(ids.map(id => dbFetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' })));
     selecionados.clear();
     document.getElementById('chk-selecionar-todos').checked = false;
     await carregarClientes();
@@ -895,7 +924,7 @@
   }
 
   async function verificarNotificacaoRevendedor() {
-    const res = await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`);
+    const res = await dbFetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`);
     const meuCadastro = await res.json() || {};
     const banner = document.getElementById('banner-notif-revendedor');
     if (meuCadastro.notificacaoAtiva) {
@@ -917,7 +946,7 @@
       const messaging = firebase.messaging();
       const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
 
-      await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`, {
+      await dbFetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`, {
         method: 'PATCH',
         body: JSON.stringify({ fcmToken: token, notificacaoAtiva: true })
       });
@@ -934,7 +963,7 @@
   async function verificarAcesso() {
     if (uidRevendedor === MASTER_UID) return; // admin nunca é restrito
 
-    const res = await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`);
+    const res = await dbFetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}.json`);
     const meuCadastro = await res.json() || {};
 
     const banner = document.getElementById('banner-acesso');
@@ -1051,7 +1080,7 @@
     const [revRes, comRes, cfgRes] = await Promise.all([
       fetch('/api/meus-indicados', { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } }),
       fetch('/api/minhas-comissoes', { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } }),
-      fetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`)
+      dbFetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`)
     ]);
     const { indicados: meusIndicados } = await revRes.json();
     const { comissoes: todasComissoes } = await comRes.json();
@@ -1181,7 +1210,7 @@
   let aplicativos = [];
 
   async function carregarClientes() {
-    const res = await fetch(`${caminhoClientes()}.json`);
+    const res = await dbFetch(`${caminhoClientes()}.json`);
     const data = await res.json() || {};
     clientes = Object.entries(data).map(([id, c]) => ({ id, ...c }));
     await carregarServidores();
@@ -1195,7 +1224,7 @@
   }
 
   async function carregarAplicativos() {
-    const res = await fetch(`${caminhoAplicativos()}.json`);
+    const res = await dbFetch(`${caminhoAplicativos()}.json`);
     const data = await res.json() || {};
     aplicativos = Object.entries(data).map(([id, a]) => ({ id, ...a }));
   }
@@ -1291,12 +1320,12 @@
     if (!nome || !codigo) { alert('Preenche o nome e o código.'); return; }
 
     if (idEditando) {
-      await fetch(`${caminhoAplicativos()}/${idEditando}.json`, {
+      await dbFetch(`${caminhoAplicativos()}/${idEditando}.json`, {
         method: 'PATCH',
         body: JSON.stringify({ nome, codigo, servidores: servidoresMarcados })
       });
     } else {
-      await fetch(`${caminhoAplicativos()}.json`, {
+      await dbFetch(`${caminhoAplicativos()}.json`, {
         method: 'POST',
         body: JSON.stringify({ nome, codigo, servidores: servidoresMarcados })
       });
@@ -1311,7 +1340,7 @@
   }
   async function excluirAplicativo(id) {
     if (!confirm('Remover esse aplicativo da lista?')) return;
-    await fetch(`${caminhoAplicativos()}/${id}.json`, { method: 'DELETE' });
+    await dbFetch(`${caminhoAplicativos()}/${id}.json`, { method: 'DELETE' });
     await carregarAplicativos();
     renderizarListaAplicativos();
   }
@@ -1321,7 +1350,7 @@
   }
 
   async function carregarServidores() {
-    const res = await fetch(`${caminhoServidores()}.json`);
+    const res = await dbFetch(`${caminhoServidores()}.json`);
     const data = await res.json() || {};
     servidores = Object.entries(data).map(([id, s]) => ({ id, ...s }));
     preencherSelectServidores();
@@ -1378,12 +1407,12 @@
     if (!nome) return;
 
     if (idEditando) {
-      await fetch(`${caminhoServidores()}/${idEditando}.json`, {
+      await dbFetch(`${caminhoServidores()}/${idEditando}.json`, {
         method: 'PATCH',
         body: JSON.stringify({ nome, dominioM3U })
       });
     } else {
-      await fetch(`${caminhoServidores()}.json`, {
+      await dbFetch(`${caminhoServidores()}.json`, {
         method: 'POST',
         body: JSON.stringify({ nome, dominioM3U })
       });
@@ -1398,7 +1427,7 @@
   }
   async function excluirServidor(id) {
     if (!confirm('Remover esse servidor da lista?')) return;
-    await fetch(`${caminhoServidores()}/${id}.json`, { method: 'DELETE' });
+    await dbFetch(`${caminhoServidores()}/${id}.json`, { method: 'DELETE' });
     await carregarServidores();
     renderizarListaServidores();
   }
@@ -1632,7 +1661,7 @@
     }
 
     if (id) {
-      await fetch(`${caminhoClientes()}/${id}.json`, {
+      await dbFetch(`${caminhoClientes()}/${id}.json`, {
         method: 'PATCH',
         body: JSON.stringify({ nome, m3uLink, whatsapp, usuario, senha, servidor, aplicativosIds, planoValor, vencimento, emTeste })
       });
@@ -1641,7 +1670,7 @@
         nome, m3uLink, whatsapp, usuario, senha, servidor, aplicativosIds, planoValor, vencimento, emTeste,
         criadoEm: Date.now()
       };
-      await fetch(`${caminhoClientes()}.json`, {
+      await dbFetch(`${caminhoClientes()}.json`, {
         method: 'POST',
         body: JSON.stringify(novoCliente)
       });
@@ -1717,12 +1746,12 @@
     const resumo = document.getElementById('td-resumo');
     await Promise.all(clientesParaTrocarDominio.map(c => {
       const novoLink = c.m3uLink.replaceAll(antigo, novo);
-      return fetch(`${caminhoClientes()}/${c.id}.json`, { method: 'PATCH', body: JSON.stringify({ m3uLink: novoLink }) });
+      return dbFetch(`${caminhoClientes()}/${c.id}.json`, { method: 'PATCH', body: JSON.stringify({ m3uLink: novoLink }) });
     }));
     const servidoresParaAtualizar = servidores.filter(s => s.dominioM3U && s.dominioM3U.includes(antigo));
     if (servidoresParaAtualizar.length > 0) {
       await Promise.all(servidoresParaAtualizar.map(s =>
-        fetch(`${caminhoServidores()}/${s.id}.json`, { method: 'PATCH', body: JSON.stringify({ dominioM3U: s.dominioM3U.replaceAll(antigo, novo) }) })
+        dbFetch(`${caminhoServidores()}/${s.id}.json`, { method: 'PATCH', body: JSON.stringify({ dominioM3U: s.dominioM3U.replaceAll(antigo, novo) }) })
       ));
       await carregarServidores();
     }
@@ -1821,7 +1850,7 @@
     const TAMANHO_LOTE = 20;
     for (let i = 0; i < importarDadosValidos.length; i += TAMANHO_LOTE) {
       const lote = importarDadosValidos.slice(i, i + TAMANHO_LOTE);
-      await Promise.all(lote.map(cliente => fetch(`${caminhoClientes()}.json`, { method: 'POST', body: JSON.stringify(cliente) })));
+      await Promise.all(lote.map(cliente => dbFetch(`${caminhoClientes()}.json`, { method: 'POST', body: JSON.stringify(cliente) })));
       importados += lote.length;
       progresso.textContent = `Importando... ${importados} / ${importarDadosValidos.length}`;
     }
@@ -1987,7 +2016,7 @@
 
   // ---- Configurações da Plataforma (master) ----
   async function abrirConfigPlataforma() {
-    const res = await fetch(`${FIREBASE_DB}/configPlataforma.json`);
+    const res = await dbFetch(`${FIREBASE_DB}/configPlataforma.json`);
     const cfg = await res.json() || {};
     document.getElementById('cp-teste-horas').value = cfg.testeHoras ?? 48;
     document.getElementById('cp-mensalidade').value = cfg.mensalidadeValor ?? 19.90;
@@ -2003,7 +2032,7 @@
     const mensalidadeValor = parseFloat(document.getElementById('cp-mensalidade').value) || 19.90;
     const comissaoPercentual = parseFloat(document.getElementById('cp-comissao-percentual').value) || 40;
     const diaPagamentoComissao = Math.min(28, Math.max(1, parseInt(document.getElementById('cp-dia-pagamento').value, 10) || 20));
-    await fetch(`${FIREBASE_DB}/configPlataforma.json`, {
+    await dbFetch(`${FIREBASE_DB}/configPlataforma.json`, {
       method: 'PATCH',
       body: JSON.stringify({ testeHoras, mensalidadeValor, comissaoPercentual, diaPagamentoComissao })
     });
@@ -2031,7 +2060,7 @@
   }
 
   async function abrirComissionamento() {
-    const cfgRes = await fetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`);
+    const cfgRes = await dbFetch(`${FIREBASE_DB}/configPlataforma/diaPagamentoComissao.json`);
     const diaPagamento = (await cfgRes.json()) || 20;
 
     cicloComissionamento = computeCiclo(diaPagamento, new Date());
@@ -2043,8 +2072,8 @@
       `Período vigente — vence dia ${new Date(cicloComissionamento.fim).toLocaleDateString('pt-BR')}`;
 
     const [revRes, comRes] = await Promise.all([
-      fetch(`${FIREBASE_DB}/revendedores.json`),
-      fetch(`${FIREBASE_DB}/comissoes.json`)
+      dbFetch(`${FIREBASE_DB}/revendedores.json`),
+      dbFetch(`${FIREBASE_DB}/comissoes.json`)
     ]);
     ultimaListaRevendedores = Object.entries(await revRes.json() || {}).map(([id, r]) => ({ id, ...r }));
     ultimaListaComissoes = Object.entries(await comRes.json() || {}).map(([id, c]) => ({ id, ...c }));
@@ -2089,14 +2118,16 @@
     }
 
     const comissoesNoPeriodo = ultimaListaComissoes.filter(c =>
-      c.data >= inicio && c.data <= fim && (statusFiltro === 'todos' || c.status === statusFiltro)
+      c.data >= inicio && c.data <= fim && (statusFiltro === 'todos' || c.status === statusFiltro) && c.revendedorId !== MASTER_UID
     );
     const totalPeriodo = comissoesNoPeriodo.reduce((s, c) => s + c.valor, 0);
     const labelTotal = statusFiltro === 'pago' ? 'Total pago no período' : statusFiltro === 'todos' ? 'Total (pendente + pago)' : 'Total pendente';
     document.getElementById('ciclo-comissionamento-total').innerHTML = `<span style="font-size:12px; color:var(--text-muted); display:block;">${labelTotal}</span>R$ ${totalPeriodo.toFixed(2)}`;
 
     // Só entram revendedores que têm pelo menos 1 indicado E algo no período filtrado
+    // (o próprio admin nunca entra aqui — indicação dele é dinheiro dele mesmo)
     const revendedoresComPendencia = ultimaListaRevendedores.filter(rev => {
+      if (rev.id === MASTER_UID) return false;
       const temIndicado = ultimaListaRevendedores.some(r => r.indicadoPor === rev.id);
       const temNoPeriodo = comissoesNoPeriodo.some(c => c.revendedorId === rev.id);
       return temIndicado && temNoPeriodo;
@@ -2116,13 +2147,13 @@
       const temAlgumaPendente = comissoesDele.some(c => c.status === 'pendente');
 
       const [pixRes] = await Promise.all([
-        fetch(`${FIREBASE_DB}/revendedores/${rev.id}/config/chavePix.json`)
+        dbFetch(`${FIREBASE_DB}/revendedores/${rev.id}/config/chavePix.json`)
       ]);
       const chavePix = await pixRes.json();
 
       const detalhesIndicados = await Promise.all(comissoesDele.map(async (c) => {
         const indicado = ultimaListaRevendedores.find(r => r.id === c.indicadoId);
-        const clientesRes = await fetch(`${FIREBASE_DB}/revendedores/${c.indicadoId}/clientes.json?shallow=true`);
+        const clientesRes = await dbFetch(`${FIREBASE_DB}/revendedores/${c.indicadoId}/clientes.json?shallow=true`);
         const clientesData = await clientesRes.json();
         const numClientes = clientesData ? Object.keys(clientesData).length : 0;
         const mesmoIp = indicado && rev.cadastroIp && indicado.cadastroIp && indicado.cadastroIp === rev.cadastroIp;
@@ -2156,8 +2187,8 @@
 
   async function abrirRevendedores() {
     const [revRes, comRes] = await Promise.all([
-      fetch(`${FIREBASE_DB}/revendedores.json`),
-      fetch(`${FIREBASE_DB}/comissoes.json`)
+      dbFetch(`${FIREBASE_DB}/revendedores.json`),
+      dbFetch(`${FIREBASE_DB}/comissoes.json`)
     ]);
     const revendedoresData = await revRes.json() || {};
     const comissoesData = await comRes.json() || {};
@@ -2179,7 +2210,7 @@
     );
 
     const totalPendenteGeral = ultimaListaComissoes
-      .filter(c => c.status === 'pendente')
+      .filter(c => c.status === 'pendente' && c.revendedorId !== MASTER_UID)
       .reduce((s, c) => s + c.valor, 0);
     document.getElementById('total-pendente-geral').textContent = `R$ ${totalPendenteGeral.toFixed(2)}`;
 
@@ -2187,7 +2218,9 @@
     container.innerHTML = listaFiltrada.map(rev => {
       const indicados = ultimaListaRevendedores.filter(r => r.indicadoPor === rev.id);
       const comissoesDele = ultimaListaComissoes.filter(c => c.revendedorId === rev.id);
-      const pendente = comissoesDele.filter(c => c.status === 'pendente').reduce((s, c) => s + c.valor, 0);
+      const ehAdmin = rev.id === MASTER_UID;
+      const pendente = ehAdmin ? 0 : comissoesDele.filter(c => c.status === 'pendente').reduce((s, c) => s + c.valor, 0);
+      const jaPagoAdmin = ehAdmin ? comissoesDele.filter(c => c.status === 'pago').reduce((s, c) => s + c.valor, 0) : 0;
       const statusAssinatura = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa' : (rev.assinaturaStatus === 'teste' && rev.testeAte > Date.now() ? 'teste' : 'vencida');
       const corStatus = statusAssinatura === 'ativa' ? 'var(--ok)' : statusAssinatura === 'teste' ? '#60A5FA' : 'var(--danger)';
 
@@ -2195,12 +2228,12 @@
         <div class="lista-item" style="flex-direction:column; align-items:stretch; padding:14px 0;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:600;">${rev.nome} <span style="font-size:11px; color:${corStatus}; font-weight:500;">● ${statusAssinatura}</span></div>
+              <div style="font-weight:600;">${rev.nome} ${ehAdmin ? '<span style="font-size:11px; color:#FBBF24;">👑 admin</span>' : ''} <span style="font-size:11px; color:${corStatus}; font-weight:500;">● ${statusAssinatura}</span></div>
               <div style="font-size:12px; color:var(--text-muted);">${rev.email} · ${indicados.length} indicado(s)</div>
             </div>
             <div style="text-align:right;">
-              <div style="font-size:12px; color:var(--text-muted);">Comissão pendente</div>
-              <div class="mono" style="color:var(--ok); font-weight:600;">R$ ${pendente.toFixed(2)}</div>
+              <div style="font-size:12px; color:var(--text-muted);">${ehAdmin ? 'Indicações diretas já pagas' : 'Comissão pendente'}</div>
+              <div class="mono" style="color:var(--ok); font-weight:600;">R$ ${(ehAdmin ? jaPagoAdmin : pendente).toFixed(2)}</div>
             </div>
           </div>
           <div style="display:flex; gap:8px; margin-top:8px;">
@@ -2348,7 +2381,7 @@
     return `${FIREBASE_DB}/revendedores/${uidRevendedor}/financeiro`;
   }
   async function registrarFinanceiro(cliente, valor, tipo) {
-    await fetch(`${caminhoFinanceiro()}.json`, {
+    await dbFetch(`${caminhoFinanceiro()}.json`, {
       method: 'POST',
       body: JSON.stringify({
         clienteNome: cliente.nome,
@@ -2364,7 +2397,7 @@
     return `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   }
   async function abrirFinanceiro() {
-    const res = await fetch(`${caminhoFinanceiro()}.json`);
+    const res = await dbFetch(`${caminhoFinanceiro()}.json`);
     const data = await res.json() || {};
     financeiroRegistros = Object.entries(data).map(([id, r]) => ({ id, ...r })).sort((a,b) => b.data - a.data);
 
@@ -2416,7 +2449,7 @@
   };
 
   async function abrirMensagens() {
-    const res = await fetch(`${caminhoConfig()}/templates.json`);
+    const res = await dbFetch(`${caminhoConfig()}/templates.json`);
     const templates = await res.json() || {};
     const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','emailAssunto','emailCorpo'];
     chaves.forEach(chave => {
@@ -2433,7 +2466,7 @@
     chaves.forEach(chave => {
       templates[chave] = document.getElementById(`tpl-${chave}`).value;
     });
-    await fetch(`${caminhoConfig()}.json`, {
+    await dbFetch(`${caminhoConfig()}.json`, {
       method: 'PATCH',
       body: JSON.stringify({ templates })
     });
@@ -2443,7 +2476,7 @@
 
   // ---- Personalização ----
   async function abrirPersonalizacao() {
-    const res = await fetch(`${caminhoConfig()}/marca.json`);
+    const res = await dbFetch(`${caminhoConfig()}/marca.json`);
     const marca = await res.json() || {};
     document.getElementById('pz-nome').value = marca.nome || '';
     document.getElementById('pz-logo').value = marca.logoUrl || '';
@@ -2463,12 +2496,81 @@
       textoBotaoNotificacao: document.getElementById('pz-texto-notif').value.trim() || 'Ativar notificações',
       textoBotaoSuporte: document.getElementById('pz-texto-suporte').value.trim() || '💬 Falar com o suporte'
     };
-    await fetch(`${caminhoConfig()}.json`, {
+    await dbFetch(`${caminhoConfig()}.json`, {
       method: 'PATCH',
       body: JSON.stringify({ marca })
     });
     fecharPersonalizacao();
     alert('Personalização salva!');
+  }
+
+  // ---- Tutoriais ----
+  function extrairIdYoutube(url) {
+    const padroes = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
+    ];
+    for (const p of padroes) {
+      const m = url.match(p);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  async function abrirTutoriais() {
+    document.getElementById('tutoriais-form-novo').style.display = uidRevendedor === MASTER_UID ? 'block' : 'none';
+    document.getElementById('tut-titulo').value = '';
+    document.getElementById('tut-url').value = '';
+    document.getElementById('tut-descricao').value = '';
+    await renderizarTutoriais();
+    document.getElementById('overlay-tutoriais').classList.add('open');
+  }
+  function fecharTutoriais() {
+    document.getElementById('overlay-tutoriais').classList.remove('open');
+  }
+  async function renderizarTutoriais() {
+    const res = await dbFetch(`${FIREBASE_DB}/tutoriais.json`);
+    const data = await res.json() || {};
+    const lista = Object.entries(data).map(([id, t]) => ({ id, ...t })).sort((a,b) => b.criadoEm - a.criadoEm);
+
+    const container = document.getElementById('lista-tutoriais');
+    container.innerHTML = lista.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum tutorial publicado ainda.</div>'
+      : lista.map(t => {
+        const videoId = extrairIdYoutube(t.urlYoutube || '');
+        return `
+          <div style="margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="font-weight:600; font-size:14px;">${t.titulo}</div>
+              ${uidRevendedor === MASTER_UID ? `<button class="del-mini" onclick="excluirTutorial('${t.id}')">remover</button>` : ''}
+            </div>
+            ${t.descricao ? `<div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">${t.descricao}</div>` : ''}
+            ${videoId
+              ? `<div style="position:relative; padding-bottom:56.25%; height:0; border-radius:8px; overflow:hidden;"><iframe src="https://www.youtube.com/embed/${videoId}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;" allowfullscreen></iframe></div>`
+              : `<a href="${t.urlYoutube}" target="_blank" style="color:var(--ok); font-size:13px;">Abrir vídeo ↗</a>`}
+          </div>
+        `;
+      }).join('');
+  }
+  async function adicionarTutorial() {
+    const titulo = document.getElementById('tut-titulo').value.trim();
+    const urlYoutube = document.getElementById('tut-url').value.trim();
+    const descricao = document.getElementById('tut-descricao').value.trim();
+    if (!titulo || !urlYoutube) { alert('Preenche o título e o link do YouTube.'); return; }
+
+    await dbFetch(`${FIREBASE_DB}/tutoriais.json`, {
+      method: 'POST',
+      body: JSON.stringify({ titulo, urlYoutube, descricao, criadoEm: Date.now() })
+    });
+
+    document.getElementById('tut-titulo').value = '';
+    document.getElementById('tut-url').value = '';
+    document.getElementById('tut-descricao').value = '';
+    await renderizarTutoriais();
+  }
+  async function excluirTutorial(id) {
+    if (!confirm('Remover esse tutorial?')) return;
+    await dbFetch(`${FIREBASE_DB}/tutoriais/${id}.json`, { method: 'DELETE' });
+    await renderizarTutoriais();
   }
 
   // ---- Suporte / Chamados ----
@@ -2494,11 +2596,11 @@
     const mensagem = document.getElementById('sup-mensagem').value.trim();
     if (!mensagem) { alert('Escreve a mensagem do chamado.'); return; }
 
-    await fetch(`${caminhoChamados()}.json`, {
+    await dbFetch(`${caminhoChamados()}.json`, {
       method: 'POST',
       body: JSON.stringify({
         revendedorId: uidRevendedor,
-        revendedorNome: (await (await fetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}/nome.json`)).json()) || document.getElementById('email-usuario').textContent,
+        revendedorNome: (await (await dbFetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}/nome.json`)).json()) || document.getElementById('email-usuario').textContent,
         assunto,
         status: 'aberto',
         criadoEm: Date.now(),
@@ -2531,7 +2633,7 @@
   async function abrirChamadoDetalhe(chamadoId, ehAdmin) {
     chamadoAbertoId = chamadoId;
     chamadoAbertoParaAdmin = ehAdmin;
-    const res = await fetch(`${caminhoChamados()}/${chamadoId}.json`);
+    const res = await dbFetch(`${caminhoChamados()}/${chamadoId}.json`);
     const chamado = await res.json();
     if (!chamado) return;
 
@@ -2559,12 +2661,12 @@
     const texto = document.getElementById('chamado-detalhe-resposta').value.trim();
     if (!texto) return;
 
-    const res = await fetch(`${caminhoChamados()}/${chamadoAbertoId}.json`);
+    const res = await dbFetch(`${caminhoChamados()}/${chamadoAbertoId}.json`);
     const chamado = await res.json();
     const mensagens = chamado.mensagens || [];
     mensagens.push({ autor: chamadoAbertoParaAdmin ? 'admin' : 'revendedor', texto, data: Date.now() });
 
-    await fetch(`${caminhoChamados()}/${chamadoAbertoId}.json`, {
+    await dbFetch(`${caminhoChamados()}/${chamadoAbertoId}.json`, {
       method: 'PATCH',
       body: JSON.stringify({
         mensagens,
@@ -2579,7 +2681,7 @@
 
   async function mudarStatusChamado() {
     const status = document.getElementById('chamado-detalhe-status').value;
-    await fetch(`${caminhoChamados()}/${chamadoAbertoId}.json`, {
+    await dbFetch(`${caminhoChamados()}/${chamadoAbertoId}.json`, {
       method: 'PATCH',
       body: JSON.stringify({ status })
     });
@@ -2587,7 +2689,7 @@
 
   let ultimaListaChamados = [];
   async function abrirChamadosAdmin() {
-    const res = await fetch(`${caminhoChamados()}.json`);
+    const res = await dbFetch(`${caminhoChamados()}.json`);
     const data = await res.json() || {};
     ultimaListaChamados = Object.entries(data).map(([id, c]) => ({ id, ...c })).sort((a,b) => b.criadoEm - a.criadoEm);
     document.getElementById('chamados-admin-filtro').value = 'abertos';
@@ -2619,7 +2721,7 @@
     return `${FIREBASE_DB}/revendedores/${uidRevendedor}/config`;
   }
   async function abrirConfiguracoes() {
-    const res = await fetch(`${caminhoConfig()}.json`);
+    const res = await dbFetch(`${caminhoConfig()}.json`);
     const config = await res.json() || {};
     document.getElementById('cfg-whatsapp').value = config.whatsappSuporte || '';
     document.getElementById('cfg-pix').value = config.chavePix || '';
@@ -2632,7 +2734,7 @@
     const whatsapp = document.getElementById('cfg-whatsapp').value.replace(/\D/g, '');
     if (!whatsapp) { alert('Preenche o número.'); return; }
     const chavePix = document.getElementById('cfg-pix').value.trim();
-    await fetch(`${caminhoConfig()}.json`, {
+    await dbFetch(`${caminhoConfig()}.json`, {
       method: 'PATCH',
       body: JSON.stringify({ whatsappSuporte: whatsapp, chavePix })
     });
@@ -2698,7 +2800,7 @@
     const novoVencimento = calcularNovoVencimento();
     if (!novoVencimento) { alert('Escolhe os dias ou uma data.'); return; }
 
-    await fetch(`${caminhoClientes()}/${id}.json`, {
+    await dbFetch(`${caminhoClientes()}/${id}.json`, {
       method: 'PATCH',
       body: JSON.stringify({ vencimento: novoVencimento, emTeste: false })
     });
@@ -2735,7 +2837,7 @@
         return;
       }
 
-      await fetch(`${caminhoClientes()}/${id}.json`, {
+      await dbFetch(`${caminhoClientes()}/${id}.json`, {
         method: 'PATCH',
         body: JSON.stringify({ vencimento: data.vencimento, emTeste: false })
       });
@@ -2775,7 +2877,7 @@
   async function excluirCliente(id) {
     if (!acessoLiberado) { alert('Seu período de teste terminou. Assine pra voltar a gerenciar clientes.'); return; }
     if (!confirm('Excluir esse cliente?')) return;
-    await fetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
+    await dbFetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
     await carregarClientes();
   }
 
