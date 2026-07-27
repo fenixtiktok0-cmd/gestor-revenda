@@ -193,7 +193,12 @@
     </div>
 
     <div class="card" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;">
-      <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">🔗 Seu link de indicação — quem se cadastrar por ele vira seu indicado</div>
+      <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">🔗 Link da página de vendas — pra quem ainda precisa entender o produto</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+        <input type="text" id="link-indicacao-venda" readonly style="flex:1; min-width:200px; font-family:'JetBrains Mono',monospace; font-size:12px;">
+        <button class="btn" onclick="copiarLinkIndicacaoVenda()">Copiar</button>
+      </div>
+      <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">🔗 Link direto pro cadastro — pra quem já topou</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <input type="text" id="link-indicacao" readonly style="flex:1; min-width:200px; font-family:'JetBrains Mono',monospace; font-size:12px;">
         <button class="btn" onclick="copiarLinkIndicacao()">Copiar</button>
@@ -913,6 +918,7 @@
     }
 
     document.getElementById('link-indicacao').value = `${window.location.origin}/cadastro.html?ref=${uidRevendedor}`;
+    document.getElementById('link-indicacao-venda').value = `${window.location.origin}/venda.html?ref=${uidRevendedor}`;
 
     verificarAcesso();
     verificarNotificacaoRevendedor();
@@ -1095,6 +1101,17 @@
 
   function copiarLinkIndicacao() {
     const input = document.getElementById('link-indicacao');
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => {
+      alert('Link copiado!');
+    }).catch(() => {
+      document.execCommand('copy');
+      alert('Link copiado!');
+    });
+  }
+
+  function copiarLinkIndicacaoVenda() {
+    const input = document.getElementById('link-indicacao-venda');
     input.select();
     navigator.clipboard.writeText(input.value).then(() => {
       alert('Link copiado!');
