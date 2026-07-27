@@ -39,10 +39,12 @@ module.exports = async (req, res) => {
       }
 
       const valorPago = pagamento.transaction_amount;
+      const TRINTA_DIAS = 30 * 24 * 60 * 60 * 1000;
 
       await db.ref(`revendedores/${revId}`).update({
         assinaturaStatus: 'ativa',
         ultimoPagamento: Date.now(),
+        pagoAte: Date.now() + TRINTA_DIAS,
       });
 
       await db.ref(`revendedores/${revId}/pagamentos`).push({
