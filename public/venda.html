@@ -543,10 +543,12 @@
 
 <script>
   // Repassa o ?ref= (link de indicação) pra tela de cadastro, sem perder
-  // a indicação de quem mandou o link da página de vendas.
+  // a indicação de quem mandou o link da página de vendas. Guarda também
+  // no sessionStorage como reforço, caso o clique não pegue o link a tempo.
   (function repassarIndicacao() {
     const ref = new URLSearchParams(window.location.search).get('ref');
     if (!ref) return;
+    sessionStorage.setItem('ref_indicacao', ref);
     ['cta-planos', 'cta-final'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.href = `/cadastro.html?ref=${ref}`;
