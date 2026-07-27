@@ -41,11 +41,16 @@ module.exports = async (req, res) => {
       displayName: nome,
     });
 
+    const configSnap = await db.ref('configPlataforma/testeHoras').once('value');
+    const testeHoras = configSnap.val() || 48;
+
     await db.ref(`revendedores/${novoUsuario.uid}`).set({
       nome,
       email,
       criadoEm: Date.now(),
       ativo: true,
+      assinaturaStatus: 'teste',
+      testeAte: Date.now() + testeHoras * 60 * 60 * 1000,
     });
 
     return res.status(200).json({ ok: true, uid: novoUsuario.uid });
