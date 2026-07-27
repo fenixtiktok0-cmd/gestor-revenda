@@ -59,13 +59,26 @@
     <label>E-mail</label>
     <input type="email" id="input-email" placeholder="seuemail@exemplo.com">
   </div>
-  <div class="field">
+  <div class="field" id="campo-senha-login">
     <label>Senha</label>
     <input type="password" id="input-senha" placeholder="••••••••">
+    <div style="text-align:right; margin-top:6px;">
+      <a href="javascript:void(0)" onclick="mostrarRecuperarSenha()" style="font-size:12px; color:var(--text-muted);">Esqueci minha senha</a>
+    </div>
   </div>
 
   <button id="btn-entrar" onclick="fazerLogin()">Entrar</button>
   <div class="erro" id="erro-login"></div>
+
+  <div id="bloco-recuperar-senha" style="display:none; margin-top:20px; padding-top:20px; border-top:1px solid var(--border);">
+    <div class="sub" style="margin-bottom:12px;">Digite seu e-mail que a gente manda um link pra você criar uma senha nova.</div>
+    <button id="btn-recuperar" onclick="enviarRecuperacaoSenha()" style="background:var(--surface-2); color:var(--text); border:1px solid var(--border);">Enviar link de recuperação</button>
+    <div style="text-align:center; margin-top:10px;">
+      <a href="javascript:void(0)" onclick="esconderRecuperarSenha()" style="font-size:12px; color:var(--text-muted);">Voltar pro login</a>
+    </div>
+    <div class="erro" id="erro-recuperacao" style="display:none;"></div>
+    <div id="sucesso-recuperacao" style="display:none; color:var(--ok); font-size:13px; margin-top:12px; text-align:center;"></div>
+  </div>
 </div>
 
 <script>
@@ -85,6 +98,51 @@
   auth.onAuthStateChanged((user) => {
     if (user) window.location.href = '/index.html';
   });
+
+  function mostrarRecuperarSenha() {
+    document.getElementById('campo-senha-login').style.display = 'none';
+    document.getElementById('btn-entrar').style.display = 'none';
+    document.getElementById('erro-login').style.display = 'none';
+    document.getElementById('bloco-recuperar-senha').style.display = 'block';
+    document.getElementById('erro-recuperacao').style.display = 'none';
+    document.getElementById('sucesso-recuperacao').style.display = 'none';
+  }
+  function esconderRecuperarSenha() {
+    document.getElementById('campo-senha-login').style.display = 'block';
+    document.getElementById('btn-entrar').style.display = 'block';
+    document.getElementById('bloco-recuperar-senha').style.display = 'none';
+  }
+  async function enviarRecuperacaoSenha() {
+    const email = document.getElementById('input-email').value.trim();
+    const erroEl = document.getElementById('erro-recuperacao');
+    const sucessoEl = document.getElementById('sucesso-recuperacao');
+    const btn = document.getElementById('btn-recuperar');
+
+    erroEl.style.display = 'none';
+    sucessoEl.style.display = 'none';
+
+    if (!email) {
+      erroEl.textContent = 'Preenche o e-mail no campo acima primeiro.';
+      erroEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+      await auth.sendPasswordResetEmail(email);
+      sucessoEl.textContent = '✅ Link enviado! Confere sua caixa de entrada (e o spam).';
+      sucessoEl.style.display = 'block';
+    } catch (err) {
+      // Por segurança, não revela se o e-mail existe ou não
+      sucessoEl.textContent = '✅ Se esse e-mail estiver cadastrado, o link de recuperação foi enviado.';
+      sucessoEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enviar link de recuperação';
+    }
+  }
 
   async function fazerLogin() {
     const email = document.getElementById('input-email').value.trim();
