@@ -1,6 +1,8 @@
-const { db } = require('../lib/firebaseAdmin');
+const { db, messaging } = require('../lib/firebaseAdmin');
 const { consultarPagamento, consultarAssinatura } = require('../lib/mercadopago');
+const { Resend } = require('resend');
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 const MASTER_UID = 'G8SAyrR7fFcslRmSIBUosRwA6QF2';
 
 function chaveMes(timestamp) {
@@ -22,6 +24,61 @@ module.exports = async (req, res) => {
 
     if (tipo === 'payment') {
       const pagamento = await consultarPagamento(id);
+
+      if (pagamento.status === 'rejected' || pagamento.status === 'cancelled') {
+        const revId = pagamento.external_reference;
+        if (!revId) return res.status(200).json({ ok: true, ignorado: 'sem referência' });
+
+        const revendedorSnap = await db.ref(`revendedores/${revId}`).once('value');
+        const revendedor = revendedorSnap.val();
+        if (!revendedor) return res.status(200).json({ ok: true, ignorado: 'revendedor não encontrado' });
+
+        // Evita avisar duas vezes o mesmo pagamento recusado
+        const jaAvisadoSnap = await db.ref(`revendedores/${revId}/pagamentosRecusados`)
+          .orderByChild('mpPaymentId').equalTo(String(pagamento.id)).once('value');
+        if (jaAvisadoSnap.exists()) {
+          return res.status(200).json({ ok: true, ignorado: 'já avisado' });
+        }
+
+        await db.ref(`revendedores/${revId}/pagamentosRecusados`).push({
+          mpPaymentId: String(pagamento.id),
+          data: Date.now(),
+          motivo: pagamento.status_detail || pagamento.status,
+        });
+
+        const corpo = `Olá ${revendedor.nome || ''}! Seu pagamento da mensalidade não foi aprovado (motivo: ${pagamento.status_detail || pagamento.status}). Tenta de novo pelo painel — com cartão ou PIX — pra não perder o acesso.`;
+
+        if (revendedor.email) {
+          try {
+            await resend.emails.send({
+              from: process.env.RESEND_FROM,
+              to: revendedor.email,
+              subject: '⚠️ Seu pagamento não foi aprovado',
+              text: corpo,
+            });
+          } catch (err) {
+            console.error('Erro ao enviar e-mail de pagamento recusado:', err.message);
+          }
+        }
+
+        if (revendedor.fcmToken && revendedor.notificacaoAtiva) {
+          try {
+            await messaging.send({
+              token: revendedor.fcmToken,
+              data: {
+                title: '⚠️ Pagamento não aprovado',
+                body: corpo,
+                link: `${process.env.APP_URL}/index.html`,
+              },
+            });
+          } catch (err) {
+            console.error('Erro ao enviar push de pagamento recusado:', err.message);
+          }
+        }
+
+        return res.status(200).json({ ok: true, avisado: true });
+      }
+
       if (pagamento.status !== 'approved') {
         return res.status(200).json({ ok: true, ignorado: 'pagamento não aprovado' });
       }
