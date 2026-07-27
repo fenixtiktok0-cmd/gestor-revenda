@@ -80,9 +80,20 @@ module.exports = async (req, res) => {
       const assinatura = await consultarAssinatura(id);
       const revId = assinatura.external_reference;
       if (revId) {
-        await db.ref(`revendedores/${revId}`).update({
-          assinaturaStatus: assinatura.status === 'authorized' ? 'ativa' : assinatura.status,
-        });
+        if (assinatura.status === 'authorized') {
+          // Assinatura autorizada — o pagamento em si (que libera de fato
+          // o acesso e define o pagoAte) chega separado, pelo evento de
+          // "payment". Aqui só marcamos que a autorização está de pé.
+          await db.ref(`revendedores/${revId}`).update({ assinaturaAutorizada: true });
+        } else {
+          // Cancelou/pausou: NÃO cortamos o acesso na hora. O pagoAte que
+          // ele já tinha continua valendo até o fim do período — só
+          // registramos que não vai renovar sozinho de novo.
+          await db.ref(`revendedores/${revId}`).update({
+            assinaturaAutorizada: false,
+            assinaturaCanceladaEm: Date.now(),
+          });
+        }
       }
       return res.status(200).json({ ok: true, processado: true });
     }
