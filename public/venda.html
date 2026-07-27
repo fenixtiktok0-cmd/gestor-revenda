@@ -493,7 +493,7 @@
         <li><span class="check">✓</span> Link de indicação com comissão automática</li>
         <li><span class="check">✓</span> Financeiro, suporte e tutoriais inclusos</li>
       </ul>
-      <a href="/cadastro.html" class="btn btn-primary" style="width:100%; position:relative;">Criar minha conta grátis</a>
+      <a href="/cadastro.html" id="cta-planos" class="btn btn-primary" style="width:100%; position:relative;">Criar minha conta grátis</a>
     </div>
   </div>
 </section>
@@ -532,7 +532,7 @@
     <div class="final-cta">
       <h2>Sua revenda automatizada começa agora</h2>
       <p>Sem robô de WhatsApp. Sem risco de bloqueio. Sem planilha perdida.</p>
-      <a href="/cadastro.html" class="btn btn-primary">Criar minha conta grátis</a>
+      <a href="/cadastro.html" id="cta-final" class="btn btn-primary">Criar minha conta grátis</a>
     </div>
   </div>
 </section>
@@ -542,6 +542,17 @@
 </footer>
 
 <script>
+  // Repassa o ?ref= (link de indicação) pra tela de cadastro, sem perder
+  // a indicação de quem mandou o link da página de vendas.
+  (function repassarIndicacao() {
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if (!ref) return;
+    ['cta-planos', 'cta-final'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.href = `/cadastro.html?ref=${ref}`;
+    });
+  })();
+
   function toggleFaq(el) {
     const item = el.parentElement;
     document.querySelectorAll('.faq-item').forEach(i => { if (i !== item) i.classList.remove('open'); });
