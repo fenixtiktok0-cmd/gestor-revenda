@@ -761,9 +761,11 @@
     const banner = document.getElementById('banner-acesso');
     const status = meuCadastro.assinaturaStatus || 'teste';
     const testeAte = meuCadastro.testeAte || 0;
+    const pagoAte = meuCadastro.pagoAte || 0;
     const emTesteValido = status === 'teste' && testeAte > Date.now();
+    const mensalidadeEmDia = status === 'ativa' && pagoAte > Date.now();
 
-    if (status === 'ativa') {
+    if (mensalidadeEmDia) {
       acessoLiberado = true;
       banner.style.display = 'none';
     } else if (emTesteValido) {
@@ -778,7 +780,10 @@
       banner.style.display = 'block';
       banner.style.background = 'rgba(248,113,113,0.12)';
       banner.style.borderColor = 'rgba(248,113,113,0.4)';
-      banner.innerHTML = `<span style="color:var(--danger);">🔒 Seu período de teste terminou. </span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:var(--danger); text-decoration:underline; font-weight:600;">💳 Assinar com cartão</a> <span style="color:var(--danger);">ou</span> <a href="javascript:void(0)" onclick="abrirPixMensalidade()" style="color:var(--danger); text-decoration:underline; font-weight:600;">🔑 Pagar com PIX este mês</a>`;
+      const mensagem = status === 'ativa'
+        ? '🔒 Sua mensalidade venceu (passaram 30 dias do último pagamento). '
+        : '🔒 Seu período de teste terminou. ';
+      banner.innerHTML = `<span style="color:var(--danger);">${mensagem}</span><a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:var(--danger); text-decoration:underline; font-weight:600;">💳 Assinar com cartão</a> <span style="color:var(--danger);">ou</span> <a href="javascript:void(0)" onclick="abrirPixMensalidade()" style="color:var(--danger); text-decoration:underline; font-weight:600;">🔑 Pagar com PIX este mês</a>`;
     }
   }
 
@@ -892,7 +897,7 @@
 
     tbody.innerHTML = meusIndicados.map(rev => {
       const comissaoDoMes = todasComissoes.find(c => c.indicadoId === rev.id && c.mesReferencia === mesAtual);
-      const statusAssinatura = rev.assinaturaStatus || 'teste';
+      const statusAssinatura = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa' : (rev.assinaturaStatus === 'teste' ? 'teste' : 'vencida');
       let statusHtml;
       if (statusAssinatura === 'ativa' && comissaoDoMes) {
         statusHtml = `<span class="badge ${comissaoDoMes.status === 'pago' ? 'ativo' : 'inativo'}">mensalidade paga · comissão ${comissaoDoMes.status}</span>`;
@@ -1858,7 +1863,7 @@
       const indicados = listaRevendedores.filter(r => r.indicadoPor === rev.id);
       const comissoesDele = listaComissoes.filter(c => c.revendedorId === rev.id);
       const pendente = comissoesDele.filter(c => c.status === 'pendente').reduce((s, c) => s + c.valor, 0);
-      const statusAssinatura = rev.assinaturaStatus || 'teste';
+      const statusAssinatura = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa' : (rev.assinaturaStatus === 'teste' && rev.testeAte > Date.now() ? 'teste' : 'vencida');
       const corStatus = statusAssinatura === 'ativa' ? 'var(--ok)' : statusAssinatura === 'teste' ? '#60A5FA' : 'var(--danger)';
 
       return `
