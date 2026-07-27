@@ -535,6 +535,26 @@
   </div>
 </div>
 
+<div class="overlay" id="overlay-detalhe-revendedor">
+  <div class="modal">
+    <div class="modal-header"><h2>Dados do revendedor</h2><button class="modal-close-x" onclick="fecharDetalheRevendedor()">✕</button></div>
+    <input type="hidden" id="det-revendedor-id">
+    <div class="field"><label>Nome</label><input type="text" id="det-nome"></div>
+    <div class="field"><label>E-mail</label><input type="email" id="det-email"></div>
+    <div class="field">
+      <label>Status</label>
+      <div id="det-status-info" class="mono" style="font-size:13px; color:var(--text-muted);"></div>
+    </div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn" style="background:var(--danger); border-color:var(--danger); color:#fff;" onclick="excluirRevendedor()">🗑️ Excluir revendedor</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" onclick="fecharDetalheRevendedor()">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarDetalheRevendedor()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay-revendedores">
   <div class="modal" style="max-width:600px;">
     <div class="modal-header"><h2>👥 Revendedores</h2><button class="modal-close-x" onclick="fecharRevendedores()">✕</button></div>
@@ -767,7 +787,14 @@
 
     if (mensalidadeEmDia) {
       acessoLiberado = true;
-      banner.style.display = 'none';
+      const diasRestantes = Math.ceil((pagoAte - Date.now()) / (1000*60*60*24));
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(52,211,153,0.1)';
+      banner.style.borderColor = 'rgba(52,211,153,0.35)';
+      const avisoCancelada = meuCadastro.assinaturaCanceladaEm
+        ? ' (sua assinatura recorrente foi cancelada — depois desse período, você vai precisar pagar de novo pra continuar)'
+        : '';
+      banner.innerHTML = `<span style="color:var(--ok);">✅ Seu plano está ativo — faltam ${diasRestantes} dia(s) pra renovar.${avisoCancelada}</span>`;
     } else if (emTesteValido) {
       acessoLiberado = true;
       const horasRestantes = Math.round((testeAte - Date.now()) / (1000*60*60));
@@ -1848,6 +1875,8 @@
   }
 
   // ---- Revendedores (master) ----
+  let ultimaListaRevendedores = [];
+
   async function abrirRevendedores() {
     const [revRes, comRes] = await Promise.all([
       fetch(`${FIREBASE_DB}/revendedores.json`),
@@ -1857,6 +1886,7 @@
     const comissoesData = await comRes.json() || {};
     const listaRevendedores = Object.entries(revendedoresData).map(([id, r]) => ({ id, ...r }));
     const listaComissoes = Object.entries(comissoesData).map(([id, c]) => ({ id, ...c }));
+    ultimaListaRevendedores = listaRevendedores;
 
     const container = document.getElementById('lista-revendedores-master');
     container.innerHTML = listaRevendedores.map(rev => {
@@ -1878,7 +1908,10 @@
               <div class="mono" style="color:var(--ok); font-weight:600;">R$ ${pendente.toFixed(2)}</div>
             </div>
           </div>
-          ${pendente > 0 ? `<button class="btn" style="margin-top:8px; padding:8px 12px; font-size:12px;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${pendente})">💵 Pagar tudo</button>` : ''}
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            ${pendente > 0 ? `<button class="btn" style="padding:8px 12px; font-size:12px;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${pendente})">💵 Pagar tudo</button>` : ''}
+            <button class="btn" style="padding:8px 12px; font-size:12px;" onclick="abrirDetalheRevendedor('${rev.id}')">✏️ Ver/editar</button>
+          </div>
         </div>
       `;
     }).join('') || '<div style="color:var(--text-muted); font-size:13px;">Nenhum revendedor ainda.</div>';
@@ -1887,6 +1920,74 @@
   }
   function fecharRevendedores() {
     document.getElementById('overlay-revendedores').classList.remove('open');
+  }
+
+  function abrirDetalheRevendedor(revendedorId) {
+    const rev = ultimaListaRevendedores.find(r => r.id === revendedorId);
+    if (!rev) return;
+    document.getElementById('det-revendedor-id').value = rev.id;
+    document.getElementById('det-nome').value = rev.nome || '';
+    document.getElementById('det-email').value = rev.email || '';
+
+    const status = (rev.assinaturaStatus === 'ativa' && rev.pagoAte > Date.now()) ? 'ativa'
+      : (rev.assinaturaStatus === 'teste' && rev.testeAte > Date.now() ? 'teste' : 'vencida/inativa');
+    const pagoAteTexto = rev.pagoAte ? new Date(rev.pagoAte).toLocaleDateString('pt-BR') : '—';
+    const indicadoPorTexto = rev.indicadoPor ? (ultimaListaRevendedores.find(r => r.id === rev.indicadoPor)?.nome || rev.indicadoPor) : 'ninguém (direto)';
+    document.getElementById('det-status-info').innerHTML = `
+      Status: ${status}<br>
+      Pago até: ${pagoAteTexto}<br>
+      Cadastrado em: ${new Date(rev.criadoEm).toLocaleDateString('pt-BR')}<br>
+      Indicado por: ${indicadoPorTexto}<br>
+      UID: ${rev.id}
+    `;
+    document.getElementById('overlay-detalhe-revendedor').classList.add('open');
+  }
+  function fecharDetalheRevendedor() {
+    document.getElementById('overlay-detalhe-revendedor').classList.remove('open');
+  }
+  async function salvarDetalheRevendedor() {
+    const revendedorId = document.getElementById('det-revendedor-id').value;
+    const nome = document.getElementById('det-nome').value.trim();
+    const email = document.getElementById('det-email').value.trim();
+    if (!nome || !email) { alert('Preenche nome e e-mail.'); return; }
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerenciar-revendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ acao: 'editar', revendedorId, nome, email })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      fecharDetalheRevendedor();
+      await abrirRevendedores();
+      alert('✅ Dados atualizados!');
+    } catch (err) {
+      alert('Erro ao salvar.');
+    }
+  }
+  async function excluirRevendedor() {
+    const revendedorId = document.getElementById('det-revendedor-id').value;
+    const nome = document.getElementById('det-nome').value;
+    if (!confirm(`Excluir "${nome}" definitivamente? Isso apaga o login dele E todos os clientes, servidores e dados que ele cadastrou. Não pode ser desfeito.`)) return;
+    if (!confirm('Tem certeza mesmo? Essa é sua última chance de cancelar.')) return;
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerenciar-revendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ acao: 'excluir', revendedorId })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      fecharDetalheRevendedor();
+      await abrirRevendedores();
+      alert('Revendedor excluído.');
+    } catch (err) {
+      alert('Erro ao excluir.');
+    }
   }
 
   function abrirPagarComissao(revendedorId, nome, valorTotal) {
