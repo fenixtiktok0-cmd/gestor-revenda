@@ -1160,6 +1160,17 @@
     return `${FIREBASE_DB}/revendedores/${uidRevendedor}/clientes`;
   }
 
+  // Formata um timestamp pro formato de <input type="date"> usando o
+  // horário LOCAL (não UTC) — evita o vencimento "vazar" pro dia seguinte
+  // quando o horário exato está perto da meia-noite (ex: 23:59:59).
+  function paraInputData(timestamp) {
+    const d = new Date(timestamp);
+    const ano = d.getFullYear();
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  }
+
   function diasAte(timestamp) {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const venc = new Date(timestamp); venc.setHours(0,0,0,0);
@@ -1512,7 +1523,7 @@
       document.getElementById('f-usuario').value = data.usuario || '';
       document.getElementById('f-senha').value = data.senha || '';
       if (data.vencimento) {
-        document.getElementById('f-vencimento').value = new Date(data.vencimento).toISOString().slice(0, 10);
+        document.getElementById('f-vencimento').value = paraInputData(data.vencimento);
       }
 
       let servidorDetectado = '';
@@ -1592,7 +1603,7 @@
     document.getElementById('f-servidor').value = c.servidor || '';
     preencherChecklistAplicativos(c.servidor || '', c.aplicativosIds || []);
     document.getElementById('f-valor').value = c.planoValor || '';
-    document.getElementById('f-vencimento').value = new Date(c.vencimento).toISOString().slice(0,10);
+    document.getElementById('f-vencimento').value = paraInputData(c.vencimento);
     document.getElementById('overlay').classList.add('open');
   }
 
@@ -1830,7 +1841,7 @@
     document.getElementById('oficial-cliente-id').value = id;
     document.getElementById('oficial-valor').value = cliente.planoValor || '';
     const em30dias = new Date(Date.now() + 30*24*60*60*1000);
-    document.getElementById('oficial-vencimento').value = em30dias.toISOString().slice(0,10);
+    document.getElementById('oficial-vencimento').value = paraInputData(em30dias.getTime());
     document.getElementById('oficial-vencimento-status').textContent = '';
     document.getElementById('btn-buscar-vencimento-oficial').style.display = cliente.m3uLink ? 'inline-block' : 'none';
     document.getElementById('overlay-ativar-oficial').classList.add('open');
@@ -1855,7 +1866,7 @@
       const data = await res.json();
       if (data.erro) { statusEl.textContent = '❌ ' + data.erro; statusEl.style.color = 'var(--danger)'; return; }
       if (data.vencimento) {
-        document.getElementById('oficial-vencimento').value = new Date(data.vencimento).toISOString().slice(0,10);
+        document.getElementById('oficial-vencimento').value = paraInputData(data.vencimento);
         statusEl.textContent = '✅ Vencimento encontrado!';
         statusEl.style.color = 'var(--ok)';
       }
@@ -2030,8 +2041,8 @@
     cicloComissionamento = computeCiclo(diaPagamento, new Date());
     const cicloAnterior = computeCiclo(diaPagamento, new Date(cicloComissionamento.inicio - 1000));
 
-    document.getElementById('com-filtro-inicio').value = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
-    document.getElementById('com-filtro-fim').value = new Date(cicloComissionamento.fim).toISOString().slice(0,10);
+    document.getElementById('com-filtro-inicio').value = paraInputData(cicloComissionamento.inicio);
+    document.getElementById('com-filtro-fim').value = paraInputData(cicloComissionamento.fim);
     document.getElementById('ciclo-comissionamento-label').textContent =
       `Período vigente — vence dia ${new Date(cicloComissionamento.fim).toLocaleDateString('pt-BR')}`;
 
@@ -2062,8 +2073,8 @@
     document.getElementById('overlay-comissionamento').classList.remove('open');
   }
   function usarCicloVigenteComissionamento() {
-    document.getElementById('com-filtro-inicio').value = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
-    document.getElementById('com-filtro-fim').value = new Date(cicloComissionamento.fim).toISOString().slice(0,10);
+    document.getElementById('com-filtro-inicio').value = paraInputData(cicloComissionamento.inicio);
+    document.getElementById('com-filtro-fim').value = paraInputData(cicloComissionamento.fim);
     document.getElementById('ciclo-comissionamento-label').textContent =
       `Período vigente — vence dia ${new Date(cicloComissionamento.fim).toLocaleDateString('pt-BR')}`;
     renderizarComissionamento();
@@ -2076,7 +2087,7 @@
     const inicio = inicioInput ? new Date(inicioInput + 'T00:00:00').getTime() : 0;
     const fim = fimInput ? new Date(fimInput + 'T23:59:59').getTime() : Date.now();
 
-    const inicioPadrao = new Date(cicloComissionamento.inicio).toISOString().slice(0,10);
+    const inicioPadrao = paraInputData(cicloComissionamento.inicio);
     if (inicioInput !== inicioPadrao) {
       document.getElementById('ciclo-comissionamento-label').textContent = 'Período filtrado manualmente';
     }
