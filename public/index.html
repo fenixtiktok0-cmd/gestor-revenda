@@ -108,6 +108,9 @@
 <div id="tela-carregando" class="loading">Carregando...</div>
 
 <div id="tela-painel" style="display:none;">
+  <div id="banner-impersonando" style="display:none; background:var(--danger); color:#fff; padding:10px 24px; text-align:center; font-size:13px; font-weight:600;">
+    🔑 Você está acessando como <span id="impersonando-nome"></span> (acesso de emergência) — <a href="javascript:void(0)" onclick="voltarParaAdmin()" style="color:#fff; text-decoration:underline;">Voltar pra conta admin</a>
+  </div>
   <header>
     <h1><span class="signal-dot"></span> Painel de Revenda</h1>
     <div style="display:flex; align-items:center; gap:14px;">
@@ -125,7 +128,6 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirImportar();">📥 Importar clientes</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirPersonalizacao();">🎨 Personalização</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirAplicativos();">📲 Aplicativos</button>
-        <button class="btn" id="btn-menu-indicados" style="text-align:left;" onclick="fecharMenu(); abrirIndicados();">👥 Meus indicados</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirRemarketing();">📣 Remarketing</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirNotificacoes();">🔔 Notificações</button>
@@ -196,6 +198,23 @@
         <input type="text" id="link-indicacao" readonly style="flex:1; min-width:200px; font-family:'JetBrains Mono',monospace; font-size:12px;">
         <button class="btn" onclick="copiarLinkIndicacao()">Copiar</button>
       </div>
+    </div>
+
+    <div class="card" id="card-meus-indicados" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;">
+      <div style="font-weight:600; font-size:14px; margin-bottom:10px;">👥 Meus indicados</div>
+      <div id="banner-mensagem-comissao" style="display:none; font-size:12px; color:var(--text-muted); background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px;"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Data</th>
+            <th>Comissão</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-indicados"></tbody>
+      </table>
+      <div class="empty-state" id="empty-indicados" style="display:none; padding:20px;">Você ainda não indicou ninguém.</div>
     </div>
 
     <button class="btn btn-primary" style="width:100%; margin-bottom:16px; padding:13px;" onclick="abrirModal()">+ Novo cliente</button>
@@ -570,25 +589,7 @@
   </div>
 </div>
 
-<div class="overlay" id="overlay-indicados">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-header"><h2>👥 Meus indicados</h2><button class="modal-close-x" onclick="fecharIndicados()">✕</button></div>
-    <div id="banner-mensagem-comissao" style="display:none; font-size:12px; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px;"></div>
-    <table>
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Data</th>
-          <th>Comissão</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="tabela-indicados"></tbody>
-    </table>
-    <div class="empty-state" id="empty-indicados" style="display:none;">Você ainda não indicou ninguém.</div>
-    <div class="modal-actions"><button class="btn" onclick="fecharIndicados()">Fechar</button></div>
-  </div>
-</div>
+
 
 <div class="overlay" id="overlay-tutoriais">
   <div class="modal" style="max-width:560px;">
@@ -906,6 +907,11 @@
     document.getElementById('tela-carregando').style.display = 'none';
     document.getElementById('tela-painel').style.display = 'block';
 
+    if (sessionStorage.getItem('admin_impersonando') === 'true') {
+      document.getElementById('banner-impersonando').style.display = 'block';
+      document.getElementById('impersonando-nome').textContent = sessionStorage.getItem('admin_impersonando_nome') || '';
+    }
+
     document.getElementById('link-indicacao').value = `${window.location.origin}/cadastro.html?ref=${uidRevendedor}`;
 
     verificarAcesso();
@@ -918,10 +924,10 @@
       document.getElementById('btn-menu-comissionamento').style.display = 'block';
       document.getElementById('btn-menu-config-plataforma').style.display = 'block';
       document.getElementById('btn-menu-chamados').style.display = 'block';
-      document.getElementById('btn-menu-indicados').style.display = 'none';
       carregarDashboardRevendedores();
     } else {
       carregarClientes();
+      carregarIndicadosFixo();
     }
   });
 
@@ -1005,7 +1011,7 @@
       const avisoCancelada = meuCadastro.assinaturaCanceladaEm
         ? ' (sua assinatura recorrente foi cancelada — depois desse período, você vai precisar pagar de novo pra continuar)'
         : '';
-      banner.innerHTML = `<span style="color:var(--ok);">✅ Seu plano está ativo — faltam ${diasRestantes} dia(s) pra renovar.${avisoCancelada}</span>`;
+      banner.innerHTML = `<span style="color:var(--ok);">✅ Seu plano está ativo — faltam ${diasRestantes} dia(s) pra renovar.${avisoCancelada}</span> <a href="javascript:void(0)" onclick="iniciarAssinatura()" style="color:var(--ok); text-decoration:underline;">💳 Assinar com cartão</a> <span style="color:var(--ok);">ou</span> <a href="javascript:void(0)" onclick="abrirPixMensalidade()" style="color:var(--ok); text-decoration:underline;">🔑 Renovar com PIX agora</a>`;
     } else if (emTesteValido) {
       acessoLiberado = true;
       const horasRestantes = Math.round((testeAte - Date.now()) / (1000*60*60));
@@ -1098,7 +1104,7 @@
     });
   }
 
-  async function abrirIndicados() {
+  async function carregarIndicadosFixo() {
     const idToken = await auth.currentUser.getIdToken();
     const [revRes, comRes, cfgRes] = await Promise.all([
       fetch('/api/meus-indicados', { method: 'POST', headers: { 'Authorization': `Bearer ${idToken}` } }),
@@ -1123,7 +1129,6 @@
     if (meusIndicados.length === 0) {
       tbody.innerHTML = '';
       empty.style.display = 'block';
-      document.getElementById('overlay-indicados').classList.add('open');
       return;
     }
     empty.style.display = 'none';
@@ -1153,11 +1158,6 @@
         </tr>
       `;
     }).join('');
-
-    document.getElementById('overlay-indicados').classList.add('open');
-  }
-  function fecharIndicados() {
-    document.getElementById('overlay-indicados').classList.remove('open');
   }
 
   function abrirCriarRevendedor() {
@@ -2268,7 +2268,10 @@
           <div style="display:flex; gap:8px; margin-top:8px;">
             ${pendente > 0 ? `<button class="btn" style="padding:8px 12px; font-size:12px;" onclick="abrirPagarComissao('${rev.id}', '${rev.nome}', ${pendente})">💵 Pagar tudo</button>` : ''}
             ${indicados.length > 0 ? `<button class="btn" style="padding:8px 12px; font-size:12px;" onclick="toggleDetalheIndicados('${rev.id}')">🔍 Ver indicados</button>` : ''}
+            ${!ehAdmin && pendente > 0 ? `<button class="btn" style="padding:8px 12px; font-size:12px; color:var(--warn); border-color:var(--warn);" onclick="zerarComissao('${rev.id}', '${rev.nome}')">🧹 Zerar comissão</button>` : ''}
             <button class="btn" style="padding:8px 12px; font-size:12px;" onclick="abrirDetalheRevendedor('${rev.id}')">✏️ Ver/editar</button>
+            ${!ehAdmin ? `<button class="btn" style="padding:8px 12px; font-size:12px; color:#60A5FA; border-color:#60A5FA;" onclick="acessarComoRevendedor('${rev.id}', '${rev.nome}')">🔑 Acessar painel dele</button>` : ''}
+            ${!ehAdmin ? `<button class="btn" style="padding:8px 12px; font-size:12px; color:var(--danger); border-color:var(--danger);" onclick="excluirRevendedorRapido('${rev.id}', '${rev.nome}')">🗑️ Excluir</button>` : ''}
           </div>
           <div id="detalhe-indicados-${rev.id}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);"></div>
         </div>
@@ -2294,6 +2297,72 @@
         </div>
       `;
     }).join('');
+  }
+
+  async function zerarComissao(revendedorId, nome) {
+    if (!confirm(`Zerar as comissões pendentes de "${nome}"? Isso marca como cancelado (não como pago) — usa quando a comissão não deveria existir, tipo indicação sua mesmo.`)) return;
+
+    const res = await dbFetch(`${FIREBASE_DB}/comissoes.json`);
+    const data = await res.json() || {};
+    const pendentes = Object.entries(data).filter(([, c]) => c.revendedorId === revendedorId && c.status === 'pendente');
+
+    await Promise.all(pendentes.map(([id]) =>
+      dbFetch(`${FIREBASE_DB}/comissoes/${id}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'cancelado', dataPagamento: Date.now() })
+      })
+    ));
+
+    await carregarDashboardRevendedores();
+    alert(`✅ ${pendentes.length} comissão(ões) zerada(s).`);
+  }
+
+  async function excluirRevendedorRapido(revendedorId, nome) {
+    if (!confirm(`Excluir "${nome}" definitivamente? Isso apaga o login dele E todos os clientes, servidores e dados que ele cadastrou. Não pode ser desfeito.`)) return;
+    if (!confirm('Tem certeza mesmo? Essa é sua última chance de cancelar.')) return;
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerenciar-revendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ acao: 'excluir', revendedorId })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      await carregarDashboardRevendedores();
+      alert('Revendedor excluído.');
+    } catch (err) {
+      alert('Erro ao excluir.');
+    }
+  }
+
+  async function acessarComoRevendedor(revendedorId, nome) {
+    if (!confirm(`Você vai entrar temporariamente como "${nome}", pra resolver algo em emergência. Sua sessão de admin vai ficar de lado até você voltar. Continuar?`)) return;
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/impersonar-revendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ revendedorId })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+
+      sessionStorage.setItem('admin_impersonando', 'true');
+      sessionStorage.setItem('admin_impersonando_nome', nome);
+      await auth.signInWithCustomToken(data.token);
+      window.location.reload();
+    } catch (err) {
+      alert('Erro ao tentar acessar como esse revendedor.');
+    }
+  }
+
+  function voltarParaAdmin() {
+    sessionStorage.removeItem('admin_impersonando');
+    sessionStorage.removeItem('admin_impersonando_nome');
+    auth.signOut().then(() => { window.location.href = '/login.html'; });
   }
 
   function abrirDetalheRevendedor(revendedorId) {
