@@ -1,6 +1,8 @@
 const { db } = require('../lib/firebaseAdmin');
 const { consultarPagamento, consultarAssinatura } = require('../lib/mercadopago');
 
+const MASTER_UID = 'G8SAyrR7fFcslRmSIBUosRwA6QF2';
+
 function chaveMes(timestamp) {
   const d = new Date(timestamp);
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -55,7 +57,10 @@ module.exports = async (req, res) => {
       });
 
       // Calcula a comissão pra quem indicou (só 1 nível, sem cascata)
-      if (revendedor.indicadoPor) {
+      // Comissão só existe quando quem indicou é OUTRO revendedor — se foi
+      // o próprio admin (dono da plataforma) que indicou, o dinheiro já é
+      // 100% dele, não tem "comissão" nenhuma a repassar.
+      if (revendedor.indicadoPor && revendedor.indicadoPor !== MASTER_UID) {
         const configSnap = await db.ref('configPlataforma').once('value');
         const configPlataforma = configSnap.val() || {};
         const percentual = configPlataforma.comissaoPercentual ?? 40;
