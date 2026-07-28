@@ -1,6 +1,26 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+
+fbq('init', '1038593628771799');
+fbq('track', 'PageView');
+</script>
+
+<noscript>
+<img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
+</noscript>
+<!-- End Meta Pixel Code -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cadastro — Painel de Revenda</title>
@@ -161,7 +181,11 @@
         });
       } catch (e) {} // não deixa isso travar o cadastro se der erro
 
-      window.location.href = '/painel.html';
+      if (typeof fbq === 'function') {
+  fbq('track', 'Lead');
+}
+
+window.location.href = '/painel.html';
     } catch (err) {
       let mensagem = 'Não deu pra criar a conta.';
       if (err.code === 'auth/email-already-in-use') mensagem = 'Já existe uma conta com esse e-mail.';
