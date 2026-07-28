@@ -161,7 +161,7 @@
         });
       } catch (e) {} // não deixa isso travar o cadastro se der erro
 
-      window.location.href = '/index.html';
+      window.location.href = '/painel.html';
     } catch (err) {
       let mensagem = 'Não deu pra criar a conta.';
       if (err.code === 'auth/email-already-in-use') mensagem = 'Já existe uma conta com esse e-mail.';
