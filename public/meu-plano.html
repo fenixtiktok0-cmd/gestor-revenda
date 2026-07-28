@@ -61,6 +61,8 @@
   <div class="loading">Carregando...</div>
 </div>
 
+<button id="btn-atualizar-flutuante" onclick="atualizarSemRecarregar()" title="Atualizar" style="position:fixed; bottom:20px; right:20px; width:48px; height:48px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--ok); font-size:20px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center;">🔄</button>
+
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyD_hPyEcvWiJ_XqwwbeDvFkUYWL2Rdk-5Y",
@@ -241,6 +243,14 @@
       console.error(err);
       alert('Não deu pra ativar as notificações agora. Tenta de novo em instantes.');
     }
+  }
+
+  async function atualizarSemRecarregar() {
+    const btn = document.getElementById('btn-atualizar-flutuante');
+    btn.style.transition = 'transform 0.6s ease';
+    btn.style.transform = 'rotate(360deg)';
+    await carregar();
+    setTimeout(() => { btn.style.transform = 'rotate(0deg)'; }, 100);
   }
 
   carregar();
