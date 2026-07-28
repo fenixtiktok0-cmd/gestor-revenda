@@ -1,5 +1,6 @@
 const { db, messaging } = require('../lib/firebaseAdmin');
 const { preencherTemplate, TEMPLATES_PADRAO } = require('../lib/templates');
+const { enviarPushSeguro } = require('../lib/pushHelper');
 const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -60,18 +61,18 @@ module.exports = async (req, res) => {
         const corpo = preencherTemplate(mapaTemplate[tipo], cliente, revId, id);
 
         if (cliente.fcmToken && cliente.notificacaoAtiva) {
-          try {
-            await messaging.send({
-              token: cliente.fcmToken,
-              data: {
-                title: 'Aviso sobre seu plano',
-                body: corpo,
-                link: `${process.env.APP_URL}/meu-plano.html?rev=${revId}&id=${id}`,
-              },
-            });
-          } catch (err) {
-            log.erros.push(`push ${revId}/${id}: ${err.message}`);
-          }
+          const resultadoPush = await enviarPushSeguro({
+            messaging,
+            db,
+            caminhoRegistro: `revendedores/${revId}/clientes/${id}`,
+            token: cliente.fcmToken,
+            payload: {
+              title: 'Aviso sobre seu plano',
+              body: corpo,
+              link: `${process.env.APP_URL}/meu-plano.html?rev=${revId}&id=${id}`,
+            },
+          });
+          if (!resultadoPush.enviado) log.erros.push(`push ${revId}/${id}: ${resultadoPush.motivo}`);
         }
 
         if (cliente.email) {
