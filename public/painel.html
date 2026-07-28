@@ -174,6 +174,11 @@
       </div>
     </div>
 
+    <div id="banner-comissao-destaque" style="border:1px solid rgba(52,211,153,0.4); background:linear-gradient(135deg, rgba(52,211,153,0.12), rgba(96,165,250,0.06)); border-radius:10px; padding:14px 16px; margin-bottom:14px; font-size:13.5px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      💰 <span>Você ganha <b id="comissao-destaque-pct" style="color:var(--ok);">40%</b> de comissão <b>recorrente</b> — todo mês que um indicado seu pagar a mensalidade, você recebe de novo.</span>
+      <button class="btn" style="padding:6px 12px; font-size:12px; margin-left:auto;" onclick="abrirLinkIndicacao()">Pegar meu link</button>
+    </div>
+
     <div id="banner-notif-revendedor" style="display:none; border:1px solid rgba(96,165,250,0.4); background:rgba(96,165,250,0.1); border-radius:10px; padding:12px 16px; margin-bottom:14px; font-size:13px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <span style="color:#60A5FA;">🔔 Ative as notificações pra receber avisos (tipo confirmação de comissão paga) direto no navegador.</span>
       <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="ativarNotificacoesRevendedor()">Ativar notificações</button>
@@ -408,18 +413,26 @@
 <div class="overlay" id="overlay-mensagens">
   <div class="modal" style="max-width:560px;">
     <div class="modal-header"><h2>✉️ Mensagens</h2><button class="modal-close-x" onclick="fecharMensagens()">✕</button></div>
-    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Clique numa variável pra inserir no texto onde o cursor estiver: {nome} {data_vencimento} {valor_plano} {servidor} {dias_restantes} {link}</p>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:8px;">Clique numa variável pra inserir no campo que você editou por último:</p>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+      <button type="button" class="btn" style="padding:5px 10px; font-size:12px;" onclick="inserirVariavel('{nome}')">{nome}</button>
+      <button type="button" class="btn" style="padding:5px 10px; font-size:12px;" onclick="inserirVariavel('{data_vencimento}')">{data_vencimento}</button>
+      <button type="button" class="btn" style="padding:5px 10px; font-size:12px;" onclick="inserirVariavel('{valor_plano}')">{valor_plano}</button>
+      <button type="button" class="btn" style="padding:5px 10px; font-size:12px;" onclick="inserirVariavel('{servidor}')">{servidor}</button>
+      <button type="button" class="btn" style="padding:5px 10px; font-size:12px;" onclick="inserirVariavel('{dias_restantes}')">{dias_restantes}</button>
+      <button type="button" class="btn" style="padding:5px 10px; font-size:12px;" onclick="inserirVariavel('{link}')">{link}</button>
+    </div>
     <div style="background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.35); border-radius:8px; padding:10px 12px; font-size:12px; color:#60A5FA; margin-bottom:16px;">
       ℹ️ Essas são as mensagens <b>padrão</b> — já funcionam sozinhas. Edite à vontade se quiser personalizar.
     </div>
 
-    <div class="field"><label>7 dias antes</label><textarea id="tpl-msg7dias" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
-    <div class="field"><label>3 dias antes</label><textarea id="tpl-msg3dias" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
-    <div class="field"><label>No dia do vencimento</label><textarea id="tpl-msgVencimento" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
-    <div class="field"><label>Vencido (cobrança)</label><textarea id="tpl-msgVencido" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
-    <div class="field"><label>Push manual (botão 🔔)</label><textarea id="tpl-msgManual" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
-    <div class="field"><label>Assunto do e-mail</label><input type="text" id="tpl-emailAssunto"></div>
-    <div class="field"><label>Corpo do e-mail</label><textarea id="tpl-emailCorpo" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>7 dias antes</label><textarea id="tpl-msg7dias" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>3 dias antes</label><textarea id="tpl-msg3dias" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>No dia do vencimento</label><textarea id="tpl-msgVencimento" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Vencido (cobrança)</label><textarea id="tpl-msgVencido" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Push manual (botão 🔔)</label><textarea id="tpl-msgManual" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Assunto do e-mail</label><input type="text" id="tpl-emailAssunto" class="campo-com-variavel"></div>
+    <div class="field"><label>Corpo do e-mail</label><textarea id="tpl-emailCorpo" class="campo-com-variavel" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
 
     <div class="modal-actions">
       <button class="btn" onclick="fecharMensagens()">Cancelar</button>
@@ -958,8 +971,17 @@
       document.getElementById('btn-header-link').style.display = 'inline-block';
       document.getElementById('btn-header-indicados').style.display = 'inline-block';
       carregarClientes();
+      carregarPercentualComissaoDestaque();
     }
   });
+
+  async function carregarPercentualComissaoDestaque() {
+    try {
+      const res = await dbFetch(`${FIREBASE_DB}/configPlataforma/comissaoPercentual.json`);
+      const pct = await res.json();
+      if (pct) document.getElementById('comissao-destaque-pct').textContent = `${pct}%`;
+    } catch (err) {}
+  }
 
   function abrirLinkIndicacao() {
     document.getElementById('link-indicacao').value = `${window.location.origin}/cadastro.html?ref=${uidRevendedor}`;
@@ -2604,6 +2626,22 @@
     emailAssunto: 'Seu plano vence em breve',
     emailCorpo: 'Olá {nome},\n\nSeu plano vence em {data_vencimento}. Valor: R$ {valor_plano}.\n\nQualquer dúvida, chama no WhatsApp.'
   };
+
+  let campoAtivoVariavel = null;
+  document.addEventListener('focusin', (e) => {
+    if (e.target.classList && e.target.classList.contains('campo-com-variavel')) {
+      campoAtivoVariavel = e.target;
+    }
+  });
+  function inserirVariavel(variavel) {
+    const campo = campoAtivoVariavel || document.getElementById('tpl-msg7dias');
+    const inicio = campo.selectionStart ?? campo.value.length;
+    const fim = campo.selectionEnd ?? campo.value.length;
+    campo.value = campo.value.slice(0, inicio) + variavel + campo.value.slice(fim);
+    campo.focus();
+    const novaPosicao = inicio + variavel.length;
+    campo.setSelectionRange(novaPosicao, novaPosicao);
+  }
 
   async function abrirMensagens() {
     const res = await dbFetch(`${caminhoConfig()}/templates.json`);
