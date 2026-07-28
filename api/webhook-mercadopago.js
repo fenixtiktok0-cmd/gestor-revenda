@@ -68,7 +68,7 @@ module.exports = async (req, res) => {
               data: {
                 title: '⚠️ Pagamento não aprovado',
                 body: corpo,
-                link: `${process.env.APP_URL}/index.html`,
+                link: `${process.env.APP_URL}/painel.html`,
               },
             });
           } catch (err) {
