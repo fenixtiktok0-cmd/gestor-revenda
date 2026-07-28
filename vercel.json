@@ -1,7 +1,4 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/venda.html" }
-  ],
   "crons": [
     {
       "path": "/api/cron-verificar-vencimentos",
