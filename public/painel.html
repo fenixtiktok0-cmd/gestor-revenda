@@ -151,6 +151,7 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirFinanceiro();">💰 Financeiro</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirDivulgacao();">📣 Divulgação</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirSuporte();">🎫 Suporte</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirTutoriais();">🎬 Tutoriais</button>
         <button class="btn" id="btn-menu-chamados" style="display:none; text-align:left;" onclick="fecharMenu(); abrirChamadosAdmin();">🎫 Chamados</button>
@@ -673,6 +674,26 @@
     </table>
     <div class="empty-state" id="empty-indicados" style="display:none; padding:16px 0 4px;">Você ainda não indicou ninguém.</div>
     <div class="modal-actions"><button class="btn" onclick="fecharIndicados()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-divulgacao">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header"><h2>📣 Divulgação</h2><button class="modal-close-x" onclick="fecharDivulgacao()">✕</button></div>
+    <p style="font-size:13px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Imagem gerada na hora, já com o seu link de indicação. Baixa e posta onde quiser.</p>
+
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+      <button class="btn" id="btn-formato-post" style="flex:1; font-size:12px;" onclick="gerarBannerDivulgacao('post')">🖼️ Post (quadrado)</button>
+      <button class="btn" id="btn-formato-story" style="flex:1; font-size:12px;" onclick="gerarBannerDivulgacao('story')">📱 Story (vertical)</button>
+    </div>
+
+    <div style="background:var(--surface-2); border-radius:12px; padding:12px; text-align:center;">
+      <canvas id="canvas-divulgacao" style="max-width:100%; border-radius:8px; display:block; margin:0 auto;"></canvas>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%; margin-top:14px;" onclick="baixarBannerDivulgacao()">⬇️ Baixar imagem</button>
+
+    <div class="modal-actions"><button class="btn" onclick="fecharDivulgacao()">Fechar</button></div>
   </div>
 </div>
 
@@ -2787,6 +2808,150 @@
       `
     }
   ];
+
+  // ---- Divulgação (gerador de banner) ----
+  let formatoBannerAtual = 'post';
+
+  function abrirDivulgacao() {
+    formatoBannerAtual = 'post';
+    document.getElementById('overlay-divulgacao').classList.add('open');
+    gerarBannerDivulgacao('post');
+  }
+  function fecharDivulgacao() {
+    document.getElementById('overlay-divulgacao').classList.remove('open');
+  }
+
+  function quebrarLinhas(ctx, texto, larguraMax) {
+    const palavras = texto.split(' ');
+    const linhas = [];
+    let linhaAtual = '';
+    palavras.forEach(palavra => {
+      const teste = linhaAtual ? `${linhaAtual} ${palavra}` : palavra;
+      if (ctx.measureText(teste).width > larguraMax && linhaAtual) {
+        linhas.push(linhaAtual);
+        linhaAtual = palavra;
+      } else {
+        linhaAtual = teste;
+      }
+    });
+    if (linhaAtual) linhas.push(linhaAtual);
+    return linhas;
+  }
+
+  function gerarBannerDivulgacao(formato) {
+    formatoBannerAtual = formato;
+    document.getElementById('btn-formato-post').classList.toggle('btn-primary', formato === 'post');
+    document.getElementById('btn-formato-story').classList.toggle('btn-primary', formato === 'story');
+
+    const canvas = document.getElementById('canvas-divulgacao');
+    const largura = formato === 'post' ? 1080 : 1080;
+    const altura = formato === 'post' ? 1080 : 1920;
+    canvas.width = largura;
+    canvas.height = altura;
+    const ctx = canvas.getContext('2d');
+
+    // Fundo
+    ctx.fillStyle = '#080B0F';
+    ctx.fillRect(0, 0, largura, altura);
+    const brilho = ctx.createRadialGradient(largura/2, altura*0.32, 0, largura/2, altura*0.32, largura*0.7);
+    brilho.addColorStop(0, 'rgba(37,211,102,0.16)');
+    brilho.addColorStop(1, 'rgba(37,211,102,0)');
+    ctx.fillStyle = brilho;
+    ctx.fillRect(0, 0, largura, altura);
+
+    const centroX = largura / 2;
+    let y = altura * (formato === 'post' ? 0.16 : 0.14);
+
+    // Logo (círculo + barra diagonal, igual o logotipo real)
+    const raioLogo = largura * 0.045;
+    ctx.strokeStyle = '#25D366';
+    ctx.lineWidth = largura * 0.011;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(centroX, y, raioLogo, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centroX - raioLogo * 0.65, y + raioLogo * 0.65);
+    ctx.lineTo(centroX + raioLogo * 0.65, y - raioLogo * 0.65);
+    ctx.stroke();
+
+    y += raioLogo + largura * 0.06;
+    ctx.fillStyle = '#EDF2F7';
+    ctx.font = `700 ${largura * 0.055}px 'Space Grotesk', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Zero Block', centroX, y);
+
+    // Eyebrow
+    y += largura * 0.09;
+    ctx.font = `700 ${largura * 0.024}px 'JetBrains Mono', monospace`;
+    const textoEyebrow = '● RENDA EXTRA';
+    const larguraEyebrow = ctx.measureText(textoEyebrow).width + largura * 0.06;
+    ctx.fillStyle = 'rgba(37,211,102,0.14)';
+    ctx.strokeStyle = 'rgba(37,211,102,0.4)';
+    ctx.lineWidth = 2;
+    const altPill = largura * 0.045;
+    ctx.beginPath();
+    ctx.roundRect(centroX - larguraEyebrow/2, y - altPill*0.7, larguraEyebrow, altPill, altPill/2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#25D366';
+    ctx.fillText(textoEyebrow, centroX, y + largura*0.006);
+
+    // Título
+    y += largura * 0.11;
+    ctx.font = `700 ${largura * 0.062}px 'Space Grotesk', sans-serif`;
+    ctx.fillStyle = '#EDF2F7';
+    const linhasTitulo = quebrarLinhas(ctx, 'Ganhe comissão todo mês indicando revendedores', largura * 0.82);
+    linhasTitulo.forEach(linha => {
+      ctx.fillText(linha, centroX, y);
+      y += largura * 0.075;
+    });
+
+    // Subtítulo
+    y += largura * 0.02;
+    ctx.font = `500 ${largura * 0.032}px 'Inter', sans-serif`;
+    ctx.fillStyle = '#8492A6';
+    const linhasSub = quebrarLinhas(ctx, 'Sem vender nada a mais. É só indicar — a comissão cai automática.', largura * 0.72);
+    linhasSub.forEach(linha => {
+      ctx.fillText(linha, centroX, y);
+      y += largura * 0.045;
+    });
+
+    // Caixa do link
+    const link = `${window.location.origin}/?ref=${uidRevendedor}`;
+    const yCaixa = altura - (formato === 'post' ? largura * 0.22 : largura * 0.28);
+    const larguraCaixa = largura * 0.82;
+    const alturaCaixa = largura * 0.12;
+    ctx.fillStyle = 'rgba(37,211,102,0.1)';
+    ctx.strokeStyle = '#25D366';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(centroX - larguraCaixa/2, yCaixa, larguraCaixa, alturaCaixa, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = `600 ${largura * 0.026}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = '#EDF2F7';
+    let linkExibicao = link;
+    while (ctx.measureText(linkExibicao).width > larguraCaixa * 0.88 && linkExibicao.length > 10) {
+      linkExibicao = linkExibicao.slice(0, -1);
+    }
+    if (linkExibicao !== link) linkExibicao += '…';
+    ctx.fillText(linkExibicao, centroX, yCaixa + alturaCaixa/2 + largura*0.009);
+
+    // Rodapé
+    ctx.font = `500 ${largura * 0.02}px 'Inter', sans-serif`;
+    ctx.fillStyle = '#8492A6';
+    ctx.fillText('Toque no link ou escaneie pra saber mais', centroX, yCaixa + alturaCaixa + largura * 0.045);
+  }
+
+  function baixarBannerDivulgacao() {
+    const canvas = document.getElementById('canvas-divulgacao');
+    const link = document.createElement('a');
+    link.download = `zeroblock-divulgacao-${formatoBannerAtual}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
 
   function abrirGuia() {
     const container = document.getElementById('lista-guia');
