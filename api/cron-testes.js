@@ -1,5 +1,6 @@
 const { db, messaging } = require('../lib/firebaseAdmin');
 const { preencherTemplate, TEMPLATES_PADRAO } = require('../lib/templates');
+const { enviarPushSeguro } = require('../lib/pushHelper');
 const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -41,19 +42,22 @@ module.exports = async (req, res) => {
         const corpo = preencherTemplate(templateMsg, cliente, revId, id);
 
         if (cliente.fcmToken && cliente.notificacaoAtiva) {
-          try {
-            await messaging.send({
-              token: cliente.fcmToken,
-              data: {
-                title: tipo === 'testeAcabando' ? 'Seu teste está acabando!' : 'Seu teste terminou',
-                body: corpo,
-                link: `${process.env.APP_URL}/meu-plano.html?rev=${revId}&id=${id}`,
-              },
-            });
+          const resultadoPush = await enviarPushSeguro({
+            messaging,
+            db,
+            caminhoRegistro: `revendedores/${revId}/clientes/${id}`,
+            token: cliente.fcmToken,
+            payload: {
+              title: tipo === 'testeAcabando' ? 'Seu teste está acabando!' : 'Seu teste terminou',
+              body: corpo,
+              link: `${process.env.APP_URL}/meu-plano.html?rev=${revId}&id=${id}`,
+            },
+          });
+          if (resultadoPush.enviado) {
             if (tipo === 'testeAcabando') log.avisosAcabando++;
             else log.avisosAcabou++;
-          } catch (err) {
-            log.erros.push(`push ${revId}/${id}: ${err.message}`);
+          } else {
+            log.erros.push(`push ${revId}/${id}: ${resultadoPush.motivo}`);
           }
         }
 
