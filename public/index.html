@@ -1,6 +1,27 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+
+fbq('init', '1038593628771799');
+fbq('track', 'PageView');
+fbq('track', 'ViewContent');
+</script>
+
+<noscript>
+<img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
+</noscript>
+<!-- End Meta Pixel Code -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zero Block — O gestor que não coloca seu WhatsApp em risco</title>
@@ -493,7 +514,7 @@
         <li><span class="check">✓</span> Link de indicação com comissão automática</li>
         <li><span class="check">✓</span> Financeiro, suporte e tutoriais inclusos</li>
       </ul>
-      <a href="/cadastro.html" id="cta-planos" class="btn btn-primary" style="width:100%; position:relative;">Criar minha conta grátis</a>
+      <a href="/cadastro.html" id="cta-planos" class="btn btn-primary" style="width:100%; position:relative;" onclick="fbq('track', 'InitiateCheckout');">Criar minha conta grátis</a>
     </div>
   </div>
 </section>
@@ -532,7 +553,7 @@
     <div class="final-cta">
       <h2>Sua revenda automatizada começa agora</h2>
       <p>Sem robô de WhatsApp. Sem risco de bloqueio. Sem planilha perdida.</p>
-      <a href="/cadastro.html" id="cta-final" class="btn btn-primary">Criar minha conta grátis</a>
+      <a href="/cadastro.html" id="cta-final" class="btn btn-primary" onclick="fbq('track', 'InitiateCheckout');">Criar minha conta grátis</a>
     </div>
   </div>
 </section>
