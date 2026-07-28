@@ -96,7 +96,7 @@
 
   // Se já estiver logado, pula direto pro painel
   auth.onAuthStateChanged((user) => {
-    if (user) window.location.href = '/index.html';
+    if (user) window.location.href = '/painel.html';
   });
 
   function mostrarRecuperarSenha() {
@@ -163,7 +163,7 @@
 
     try {
       await auth.signInWithEmailAndPassword(email, senha);
-      window.location.href = '/index.html';
+      window.location.href = '/painel.html';
     } catch (err) {
       let mensagem = 'Não deu pra entrar. Confirma o e-mail e a senha.';
       if (err.code === 'auth/invalid-email') mensagem = 'E-mail inválido.';
