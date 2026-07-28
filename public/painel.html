@@ -126,13 +126,16 @@
     <h1><span class="signal-dot"></span> Painel de Revenda</h1>
     <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
       <span class="header-info" id="email-usuario"></span>
-      <button class="btn" style="font-size:13px; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:700;" onclick="abrirGuia()">📖 Guia do painel</button>
-      <button class="btn" id="btn-header-link" style="display:none; font-size:13px;" onclick="abrirLinkIndicacao()">🔗 Link de indicação</button>
-      <button class="btn" id="btn-header-indicados" style="display:none; font-size:13px;" onclick="abrirIndicados()">👥 Minhas indicações</button>
       <button class="btn" onclick="abrirMenu()" style="font-size:18px; padding:8px 14px;">☰</button>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
   </header>
+
+  <div class="wrap-actions" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; padding:14px 24px; border-bottom:1px solid var(--border);">
+    <button class="btn" style="font-size:13px; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:700;" onclick="abrirGuia()">📖 Guia do painel</button>
+    <button class="btn" id="btn-header-link" style="display:none; font-size:13px;" onclick="abrirLinkIndicacao()">🔗 Link de indicação</button>
+    <button class="btn" id="btn-header-indicados" style="display:none; font-size:13px;" onclick="abrirIndicados()">👥 Minhas indicações</button>
+  </div>
 
   <div class="overlay" id="overlay-menu">
     <div class="modal" style="max-width:340px;">
@@ -186,17 +189,27 @@
       </div>
     </div>
 
-    <div id="banner-comissao-destaque" style="border:1px solid rgba(52,211,153,0.4); background:linear-gradient(135deg, rgba(52,211,153,0.12), rgba(96,165,250,0.06)); border-radius:10px; padding:14px 16px; margin-bottom:14px; font-size:13.5px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-      💰 <span>Você ganha <b id="comissao-destaque-pct" style="color:var(--ok);">40%</b> de comissão <b>recorrente</b> — todo mês que um indicado seu pagar a mensalidade, você recebe de novo.</span>
-      <button class="btn" style="padding:6px 12px; font-size:12px; margin-left:auto;" onclick="abrirLinkIndicacao()">Pegar meu link</button>
-    </div>
+    <div id="caixa-avisos" style="border:1px solid var(--border); border-radius:10px; margin-bottom:20px; overflow:hidden;">
+      <div onclick="toggleAvisos()" style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; cursor:pointer; background:var(--surface); font-size:13px; font-weight:600;">
+        <span>ℹ️ Clique aqui pra ver informações importantes</span>
+        <span id="seta-avisos" style="color:var(--ok); transition:transform .2s ease;">▶</span>
+      </div>
+      <div id="conteudo-avisos" style="display:none; padding:14px 16px 4px;">
 
-    <div id="banner-notif-revendedor" style="display:none; border:1px solid rgba(96,165,250,0.4); background:rgba(96,165,250,0.1); border-radius:10px; padding:12px 16px; margin-bottom:14px; font-size:13px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-      <span style="color:#60A5FA;">🔔 Ative as notificações pra receber avisos (tipo confirmação de comissão paga) direto no navegador.</span>
-      <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="ativarNotificacoesRevendedor()">Ativar notificações</button>
-    </div>
+        <div id="banner-comissao-destaque" style="border:1px solid rgba(52,211,153,0.4); background:linear-gradient(135deg, rgba(52,211,153,0.12), rgba(96,165,250,0.06)); border-radius:10px; padding:14px 16px; margin-bottom:14px; font-size:13.5px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          💰 <span>Você ganha <b id="comissao-destaque-pct" style="color:var(--ok);">40%</b> de comissão <b>recorrente</b> — todo mês que um indicado seu pagar a mensalidade, você recebe de novo.</span>
+          <button class="btn" style="padding:6px 12px; font-size:12px; margin-left:auto;" onclick="abrirLinkIndicacao()">Pegar meu link</button>
+        </div>
 
-    <div id="banner-acesso" style="display:none; border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:13px;"></div>
+        <div id="banner-notif-revendedor" style="display:none; border:1px solid rgba(96,165,250,0.4); background:rgba(96,165,250,0.1); border-radius:10px; padding:12px 16px; margin-bottom:14px; font-size:13px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <span style="color:#60A5FA;">🔔 Ative as notificações pra receber avisos (tipo confirmação de comissão paga) direto no navegador.</span>
+          <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="ativarNotificacoesRevendedor()">Ativar notificações</button>
+        </div>
+
+        <div id="banner-acesso" style="display:none; border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:14px; font-size:13px;"></div>
+
+      </div>
+    </div>
 
     <div class="overlay" id="overlay-pix-mensalidade">
       <div class="modal">
@@ -997,6 +1010,14 @@
       carregarPercentualComissaoDestaque();
     }
   });
+
+  function toggleAvisos() {
+    const conteudo = document.getElementById('conteudo-avisos');
+    const seta = document.getElementById('seta-avisos');
+    const abrindo = conteudo.style.display === 'none';
+    conteudo.style.display = abrindo ? 'block' : 'none';
+    seta.style.transform = abrindo ? 'rotate(90deg)' : 'rotate(0deg)';
+  }
 
   async function carregarPercentualComissaoDestaque() {
     try {
