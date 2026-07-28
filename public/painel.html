@@ -680,7 +680,18 @@
 <div class="overlay" id="overlay-divulgacao">
   <div class="modal" style="max-width:460px;">
     <div class="modal-header"><h2>📣 Divulgação</h2><button class="modal-close-x" onclick="fecharDivulgacao()">✕</button></div>
-    <p style="font-size:13px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Imagem gerada na hora, já com o seu link de indicação. Baixa e posta onde quiser.</p>
+    <p style="font-size:13px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Material pra divulgar o painel — pra captar gente que precisa gerenciar clientes de assinatura. Baixa e posta onde quiser.</p>
+
+    <div class="field">
+      <label>Arte</label>
+      <select id="select-modelo-divulgacao" onchange="gerarBannerDivulgacao(formatoBannerAtual)" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-size:13px;">
+        <option value="0">1 — Sem risco de bloqueio</option>
+        <option value="1">2 — Organize tudo num painel só</option>
+        <option value="2">3 — Cobrança automática</option>
+        <option value="3">4 — Nunca mais esqueça um vencimento</option>
+        <option value="4">5 — Controle total dos seus clientes</option>
+      </select>
+    </div>
 
     <div style="display:flex; gap:8px; margin-bottom:14px;">
       <button class="btn" id="btn-formato-post" style="flex:1; font-size:12px;" onclick="gerarBannerDivulgacao('post')">🖼️ Post (quadrado)</button>
@@ -2838,13 +2849,49 @@
     return linhas;
   }
 
+  const MODELOS_DIVULGACAO = [
+    {
+      eyebrow: '● SEM RISCO DE BLOQUEIO',
+      titulo: 'Gerencie seus clientes sem arriscar seu WhatsApp',
+      subtitulo: 'Avisos automáticos por push e e-mail — seu número nunca corre risco de banimento.',
+      rodape: 'Zero Block · o gestor que protege seu WhatsApp'
+    },
+    {
+      eyebrow: '● TUDO NUM PAINEL SÓ',
+      titulo: 'Pare de controlar clientes na cabeça ou em planilha solta',
+      subtitulo: 'Cadastro, vencimento, financeiro e cobrança — organizado automaticamente.',
+      rodape: 'Zero Block · gestão completa de revenda'
+    },
+    {
+      eyebrow: '● COBRANÇA AUTOMÁTICA',
+      titulo: 'Aviso de vencimento sai sozinho, todo santo dia',
+      subtitulo: 'Push e e-mail automáticos — você só cobra pelo WhatsApp quando quiser, na sua velocidade.',
+      rodape: 'Zero Block · automatize sem perder o controle'
+    },
+    {
+      eyebrow: '● NUNCA MAIS ESQUEÇA',
+      titulo: 'Nunca mais perca um cliente por vencimento esquecido',
+      subtitulo: 'O sistema avisa 7 dias antes, 3 dias antes, no dia e depois de vencido.',
+      rodape: 'Zero Block · sua revenda no automático'
+    },
+    {
+      eyebrow: '● CONTROLE TOTAL',
+      titulo: 'Todos os seus clientes, servidores e financeiro num lugar só',
+      subtitulo: 'Cadastro rápido, sincronização automática, e relatório financeiro sempre em dia.',
+      rodape: 'Zero Block · o painel que organiza sua revenda'
+    }
+  ];
+
   function gerarBannerDivulgacao(formato) {
     formatoBannerAtual = formato;
     document.getElementById('btn-formato-post').classList.toggle('btn-primary', formato === 'post');
     document.getElementById('btn-formato-story').classList.toggle('btn-primary', formato === 'story');
 
+    const modeloIndex = parseInt(document.getElementById('select-modelo-divulgacao').value, 10) || 0;
+    const modelo = MODELOS_DIVULGACAO[modeloIndex];
+
     const canvas = document.getElementById('canvas-divulgacao');
-    const largura = formato === 'post' ? 1080 : 1080;
+    const largura = 1080;
     const altura = formato === 'post' ? 1080 : 1920;
     canvas.width = largura;
     canvas.height = altura;
@@ -2853,7 +2900,7 @@
     // Fundo
     ctx.fillStyle = '#080B0F';
     ctx.fillRect(0, 0, largura, altura);
-    const brilho = ctx.createRadialGradient(largura/2, altura*0.32, 0, largura/2, altura*0.32, largura*0.7);
+    const brilho = ctx.createRadialGradient(largura/2, altura*0.38, 0, largura/2, altura*0.38, largura*0.75);
     brilho.addColorStop(0, 'rgba(37,211,102,0.16)');
     brilho.addColorStop(1, 'rgba(37,211,102,0)');
     ctx.fillStyle = brilho;
@@ -2861,6 +2908,7 @@
 
     const centroX = largura / 2;
     let y = altura * (formato === 'post' ? 0.16 : 0.14);
+    ctx.textAlign = 'center';
 
     // Logo (círculo + barra diagonal, igual o logotipo real)
     const raioLogo = largura * 0.045;
@@ -2877,78 +2925,55 @@
 
     y += raioLogo + largura * 0.06;
     ctx.fillStyle = '#EDF2F7';
-    ctx.font = `700 ${largura * 0.055}px 'Space Grotesk', sans-serif`;
-    ctx.textAlign = 'center';
+    ctx.font = `700 ${largura * 0.05}px 'Space Grotesk', sans-serif`;
     ctx.fillText('Zero Block', centroX, y);
 
     // Eyebrow
     y += largura * 0.09;
-    ctx.font = `700 ${largura * 0.024}px 'JetBrains Mono', monospace`;
-    const textoEyebrow = '● RENDA EXTRA';
-    const larguraEyebrow = ctx.measureText(textoEyebrow).width + largura * 0.06;
+    ctx.font = `700 ${largura * 0.022}px 'JetBrains Mono', monospace`;
+    const larguraEyebrow = ctx.measureText(modelo.eyebrow).width + largura * 0.06;
     ctx.fillStyle = 'rgba(37,211,102,0.14)';
     ctx.strokeStyle = 'rgba(37,211,102,0.4)';
     ctx.lineWidth = 2;
-    const altPill = largura * 0.045;
+    const altPill = largura * 0.042;
     ctx.beginPath();
     ctx.roundRect(centroX - larguraEyebrow/2, y - altPill*0.7, larguraEyebrow, altPill, altPill/2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#25D366';
-    ctx.fillText(textoEyebrow, centroX, y + largura*0.006);
+    ctx.fillText(modelo.eyebrow, centroX, y + largura*0.005);
 
     // Título
-    y += largura * 0.11;
-    ctx.font = `700 ${largura * 0.062}px 'Space Grotesk', sans-serif`;
+    y += largura * 0.12;
+    ctx.font = `700 ${largura * 0.058}px 'Space Grotesk', sans-serif`;
     ctx.fillStyle = '#EDF2F7';
-    const linhasTitulo = quebrarLinhas(ctx, 'Ganhe comissão todo mês indicando revendedores', largura * 0.82);
+    const linhasTitulo = quebrarLinhas(ctx, modelo.titulo, largura * 0.82);
     linhasTitulo.forEach(linha => {
       ctx.fillText(linha, centroX, y);
-      y += largura * 0.075;
+      y += largura * 0.07;
     });
 
     // Subtítulo
-    y += largura * 0.02;
-    ctx.font = `500 ${largura * 0.032}px 'Inter', sans-serif`;
+    y += largura * 0.03;
+    ctx.font = `500 ${largura * 0.03}px 'Inter', sans-serif`;
     ctx.fillStyle = '#8492A6';
-    const linhasSub = quebrarLinhas(ctx, 'Sem vender nada a mais. É só indicar — a comissão cai automática.', largura * 0.72);
+    const linhasSub = quebrarLinhas(ctx, modelo.subtitulo, largura * 0.72);
     linhasSub.forEach(linha => {
       ctx.fillText(linha, centroX, y);
-      y += largura * 0.045;
+      y += largura * 0.044;
     });
 
-    // Caixa do link
-    const link = `${window.location.origin}/?ref=${uidRevendedor}`;
-    const yCaixa = altura - (formato === 'post' ? largura * 0.22 : largura * 0.28);
-    const larguraCaixa = largura * 0.82;
-    const alturaCaixa = largura * 0.12;
-    ctx.fillStyle = 'rgba(37,211,102,0.1)';
-    ctx.strokeStyle = '#25D366';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(centroX - larguraCaixa/2, yCaixa, larguraCaixa, alturaCaixa, 16);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = `600 ${largura * 0.026}px 'JetBrains Mono', monospace`;
-    ctx.fillStyle = '#EDF2F7';
-    let linkExibicao = link;
-    while (ctx.measureText(linkExibicao).width > larguraCaixa * 0.88 && linkExibicao.length > 10) {
-      linkExibicao = linkExibicao.slice(0, -1);
-    }
-    if (linkExibicao !== link) linkExibicao += '…';
-    ctx.fillText(linkExibicao, centroX, yCaixa + alturaCaixa/2 + largura*0.009);
-
-    // Rodapé
-    ctx.font = `500 ${largura * 0.02}px 'Inter', sans-serif`;
-    ctx.fillStyle = '#8492A6';
-    ctx.fillText('Toque no link ou escaneie pra saber mais', centroX, yCaixa + alturaCaixa + largura * 0.045);
+    // Rodapé (sem link, só a marca)
+    ctx.font = `600 ${largura * 0.022}px 'Inter', sans-serif`;
+    ctx.fillStyle = '#25D366';
+    ctx.fillText(modelo.rodape, centroX, altura - largura * 0.06);
   }
 
   function baixarBannerDivulgacao() {
     const canvas = document.getElementById('canvas-divulgacao');
+    const modeloIndex = document.getElementById('select-modelo-divulgacao').value;
     const link = document.createElement('a');
-    link.download = `zeroblock-divulgacao-${formatoBannerAtual}.png`;
+    link.download = `zeroblock-divulgacao-modelo${Number(modeloIndex)+1}-${formatoBannerAtual}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   }
