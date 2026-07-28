@@ -103,7 +103,8 @@
   .dia-chip.active, .base-chip.active { background:var(--ok); color:#06231A; border-color:var(--ok); font-weight:600; }
 
   @media (max-width:720px) {
-    table, thead { display:none; }
+    table { display:block; border:none; background:none; }
+    thead { display:none; }
     tbody, tr, td { display:block; width:100%; }
     tbody tr { border-bottom:1px solid var(--border); padding:14px 16px; }
     tbody td { border:none; padding:4px 0; display:flex; justify-content:space-between; }
