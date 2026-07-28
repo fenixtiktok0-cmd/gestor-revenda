@@ -80,6 +80,17 @@
   .loading { text-align:center; padding:60px; color:var(--text-muted); }
 
   .lista-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; }
+
+  .guia-item { border:1px solid var(--border); border-radius:10px; margin-bottom:8px; overflow:hidden; }
+  .guia-q { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; cursor:pointer; font-weight:600; font-size:14px; background:var(--surface-2); }
+  .guia-q .seta { color:var(--ok); transition:transform .2s ease; flex-shrink:0; }
+  .guia-item.open .seta { transform:rotate(90deg); }
+  .guia-a { max-height:0; overflow:hidden; transition:max-height .25s ease; }
+  .guia-item.open .guia-a { max-height:2000px; }
+  .guia-a-inner { padding:14px 16px; font-size:13.5px; line-height:1.7; color:var(--text); }
+  .guia-a-inner ol, .guia-a-inner ul { padding-left:20px; margin:8px 0; }
+  .guia-a-inner li { margin-bottom:6px; }
+  .guia-demo { display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:12px; margin:0 2px; }
   .lista-item:last-child { border-bottom:none; }
   .del-mini { background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; }
 
@@ -115,6 +126,7 @@
     <h1><span class="signal-dot"></span> Painel de Revenda</h1>
     <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
       <span class="header-info" id="email-usuario"></span>
+      <button class="btn" style="font-size:13px; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:700;" onclick="abrirGuia()">📖 Guia do painel</button>
       <button class="btn" id="btn-header-link" style="display:none; font-size:13px;" onclick="abrirLinkIndicacao()">🔗 Link de indicação</button>
       <button class="btn" id="btn-header-indicados" style="display:none; font-size:13px;" onclick="abrirIndicados()">👥 Minhas indicações</button>
       <button class="btn" onclick="abrirMenu()" style="font-size:18px; padding:8px 14px;">☰</button>
@@ -648,6 +660,17 @@
     </table>
     <div class="empty-state" id="empty-indicados" style="display:none; padding:16px 0 4px;">Você ainda não indicou ninguém.</div>
     <div class="modal-actions"><button class="btn" onclick="fecharIndicados()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-guia">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header"><h2>📖 Guia do painel</h2><button class="modal-close-x" onclick="fecharGuia()">✕</button></div>
+    <p style="font-size:13px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Passo a passo de tudo, com os mesmos ícones que você vê no painel. Clica em cada tópico pra abrir.</p>
+
+    <div id="lista-guia"></div>
+
+    <div class="modal-actions"><button class="btn" onclick="fecharGuia()">Fechar</button></div>
   </div>
 </div>
 
@@ -2633,6 +2656,137 @@
       campoAtivoVariavel = e.target;
     }
   });
+  const CONTEUDO_GUIA = [
+    {
+      titulo: '🚀 Primeiros passos',
+      html: `
+        <ol>
+          <li>Depois de criar sua conta, você entra automaticamente em <span class="guia-demo" style="color:#60A5FA;">🧪 teste</span> — pode usar tudo por um tempo, sem pagar nada.</li>
+          <li>Assim que loga, vê um banner azul <b>"🔔 Ative as notificações"</b> — clica em <b>Ativar notificações</b> e permite no navegador quando ele perguntar. Isso é o que te avisa quando uma comissão for paga.</li>
+          <li>Quando o teste acabar, aparece um banner mostrando as duas formas de pagar: <b>💳 Assinar com cartão</b> (cobra sozinho todo mês) ou <b>🔑 Renovar com PIX</b> (gera um código na hora).</li>
+        </ol>
+      `
+    },
+    {
+      titulo: '👤 Cadastro de clientes',
+      html: `
+        <ol>
+          <li>Clica no botão verde <b>"+ Novo cliente"</b>, no topo da tela.</li>
+          <li>Preenche nome, WhatsApp, servidor, valor do plano e vencimento.</li>
+          <li>Se o cliente já tem um painel IPTV, cola o link M3U dele no campo próprio e clica em <b>🔍 Buscar</b> — o sistema puxa usuário, senha, vencimento e até detecta o servidor sozinho (se você já tiver cadastrado o domínio daquele servidor).</li>
+        </ol>
+        <p>Na lista de clientes, cada linha tem esses botões de ação:</p>
+        <ul>
+          <li><span class="guia-demo">💬 WhatsApp</span> — abre uma conversa com o cliente</li>
+          <li><span class="guia-demo">🔄 Renovar</span> — renova o plano dele</li>
+          <li><span class="guia-demo">🔔 Enviar push</span> — manda um aviso avulso</li>
+          <li><span class="guia-demo">🔗 Link do painel</span> — manda o link da área dele pra ele acompanhar</li>
+        </ul>
+      `
+    },
+    {
+      titulo: '🧪 Clientes de teste',
+      html: `
+        <ol>
+          <li>No cadastro, marca a caixinha <b>"🧪 Cliente de teste"</b> e escolhe a duração (1h a 24h).</li>
+          <li>Cliente de teste tem um selo diferente na lista: <span class="badge" style="background:rgba(96,165,250,0.15); color:#60A5FA;">🧪 teste</span></li>
+          <li>Quando o cliente gostar e quiser virar oficial, clica no botão <span class="guia-demo" style="color:#60A5FA;">✅ Ativar como oficial</span> (só aparece pra quem está em teste) — define o valor e o vencimento de verdade.</li>
+        </ol>
+      `
+    },
+    {
+      titulo: '🔄 Renovação',
+      html: `
+        <ol>
+          <li>Clica no botão <span class="guia-demo" style="color:var(--ok);">🔄</span> na linha do cliente.</li>
+          <li>Escolhe quantos dias renovar (chips de +15 a +360), ou digita uma data específica.</li>
+          <li>Se o cliente tiver link M3U cadastrado, aparece um botão extra <b>"📡 Sincronizar com servidor"</b> — puxa a data real de lá, sem você precisar calcular nada.</li>
+          <li>Depois de confirmar, o WhatsApp já abre sozinho com o comprovante pronto pra você mandar.</li>
+        </ol>
+      `
+    },
+    {
+      titulo: '🖥️ Servidores e 📲 Aplicativos',
+      html: `
+        <ol>
+          <li>No menu (☰), abre <b>🖥️ Servidores</b> pra cadastrar o nome do servidor e (opcional) o domínio do link M3U dele — isso é o que permite a busca automática funcionar.</li>
+          <li>Em <b>📲 Aplicativos</b>, cadastra o nome e código de cada app, vinculando a qual servidor ele funciona.</li>
+          <li>No cadastro do cliente, ao escolher o servidor, só aparecem os apps vinculados a ele.</li>
+        </ol>
+      `
+    },
+    {
+      titulo: '🔔 Notificações do cliente',
+      html: `
+        <p>Na coluna "Status" da lista de clientes, tem um sininho ao lado do status dele:</p>
+        <p>
+          <span class="guia-demo">ativo <span style="opacity:1;">🔔</span></span> = cliente <b>já ativou</b> a notificação — ele vai receber os avisos de vencimento automaticamente<br><br>
+          <span class="guia-demo">ativo <span style="opacity:0.3;">🔔</span></span> = cliente <b>ainda não ativou</b> — vale mandar o link pra ele pelo botão 🔗
+        </p>
+        <p>Pra ver a lista completa de quem ativou e quem não ativou de uma vez, vai no menu (☰) → <b>🔔 Notificações</b>.</p>
+      `
+    },
+    {
+      titulo: '✉️ Mensagens automáticas',
+      html: `
+        <ol>
+          <li>No menu (☰) → <b>✉️ Mensagens</b> — edita o texto de cada aviso (7 dias antes, 3 dias antes, no dia, vencido, e-mail).</li>
+          <li>Clica num campo de texto, depois clica numa das variáveis (tipo <span class="guia-demo">{nome}</span> ou <span class="guia-demo">{data_vencimento}</span>) — ela já entra no texto na posição do cursor.</li>
+          <li>Se você não mexer em nada, os textos padrão já funcionam sozinhos — não precisa editar se não quiser.</li>
+        </ol>
+      `
+    },
+    {
+      titulo: '💰 Financeiro',
+      html: `
+        <ol>
+          <li>Todo cadastro novo (que não seja teste) e toda renovação já entram sozinhos no Financeiro — você não precisa lançar nada na mão.</li>
+          <li>No menu (☰) → <b>💰 Financeiro</b>, filtra por mês pra ver o total daquele período.</li>
+        </ol>
+      `
+    },
+    {
+      titulo: '👥 Indicação e comissão',
+      html: `
+        <ol>
+          <li>Clica em <b>"🔗 Link de indicação"</b> no topo da tela — tem dois links: um pra página de vendas (pra quem ainda não conhece), outro direto pro cadastro (pra quem já topou).</li>
+          <li>Toda pessoa que virar revendedor pelo seu link é sua indicação.</li>
+          <li>Quando a mensalidade dela for paga, você recebe uma comissão automaticamente — todo mês, enquanto ela continuar pagando.</li>
+          <li>Clica em <b>"👥 Minhas indicações"</b> pra ver quem você já indicou, o status de cada um, e quanto já recebeu / está pendente.</li>
+        </ol>
+      `
+    },
+    {
+      titulo: '🎫 Suporte',
+      html: `
+        <ol>
+          <li>No menu (☰) → <b>🎫 Suporte</b> — escolhe o assunto (Comissão, Melhoria, Cadastro, Problema técnico, Dúvida geral, Outros) e escreve sua mensagem.</li>
+          <li>Você recebe a resposta ali mesmo, na mesma tela, como uma conversa.</li>
+        </ol>
+      `
+    }
+  ];
+
+  function abrirGuia() {
+    const container = document.getElementById('lista-guia');
+    container.innerHTML = CONTEUDO_GUIA.map((secao, i) => `
+      <div class="guia-item" id="guia-item-${i}">
+        <div class="guia-q" onclick="toggleGuia(${i})">
+          <span>${secao.titulo}</span>
+          <span class="seta">▶</span>
+        </div>
+        <div class="guia-a"><div class="guia-a-inner">${secao.html}</div></div>
+      </div>
+    `).join('');
+    document.getElementById('overlay-guia').classList.add('open');
+  }
+  function fecharGuia() {
+    document.getElementById('overlay-guia').classList.remove('open');
+  }
+  function toggleGuia(i) {
+    document.getElementById(`guia-item-${i}`).classList.toggle('open');
+  }
+
   function inserirVariavel(variavel) {
     const campo = campoAtivoVariavel || document.getElementById('tpl-msg7dias');
     const inicio = campo.selectionStart ?? campo.value.length;
