@@ -3238,9 +3238,17 @@
       });
       const data = await res.json();
       if (data.erro) { alert('Erro: ' + data.erro); return; }
-      alert(data.enviado ? 'Push enviado!' : 'Não enviado: ' + (data.motivo || 'erro desconhecido'));
+
+      const partes = [];
+      partes.push(data.pushEnviado ? '✅ Push enviado' : '❌ Push não enviado' + (data.motivo ? ` (${data.motivo})` : ''));
+      partes.push(data.emailEnviado ? '✅ E-mail enviado' : '❌ E-mail não enviado (sem e-mail cadastrado ou falhou)');
+      alert(partes.join('\n'));
+
+      if (data.pushEnviado === false && data.motivo && data.motivo.includes('token expirado')) {
+        await carregarClientes();
+      }
     } catch (err) {
-      alert('Erro ao enviar push.');
+      alert('Erro ao enviar aviso.');
     }
   }
 
