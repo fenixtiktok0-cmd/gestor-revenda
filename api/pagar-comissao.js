@@ -76,7 +76,7 @@ module.exports = async (req, res) => {
           data: {
             title: 'Sua comissão foi paga! 💰',
             body: corpo,
-            link: `${process.env.APP_URL}/index.html`,
+            link: `${process.env.APP_URL}/painel.html`,
           },
         });
         pushEnviado = true;
