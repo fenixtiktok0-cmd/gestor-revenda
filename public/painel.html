@@ -472,6 +472,8 @@
     <div class="field"><label>Vencido (cobrança)</label><textarea id="tpl-msgVencido" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
     <div class="field"><label>Push manual (botão 🔔)</label><textarea id="tpl-msgManual" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
     <div class="field"><label>Mensagem do link do painel (botão 🔗)</label><textarea id="tpl-msgLink" class="campo-com-variavel" rows="2" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field campo-iptv"><label>Mensagem de ativação do teste (botão "Salvar e enviar link")</label><textarea id="tpl-msgAtivarTeste" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Mensagem de ativação do teste (botão "Salvar e enviar link")</label><textarea id="tpl-msgAtivarTeste" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
     <div class="field"><label>Assunto do e-mail</label><input type="text" id="tpl-emailAssunto" class="campo-com-variavel"></div>
     <div class="field"><label>Corpo do e-mail</label><textarea id="tpl-emailCorpo" class="campo-com-variavel" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
 
@@ -975,7 +977,8 @@
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarCliente()">Salvar</button>
+      <button class="btn campo-iptv" id="btn-salvar-enviar-teste" style="display:none;" onclick="salvarCliente(true)">💾📲 Salvar e enviar link</button>
+      <button class="btn btn-primary" onclick="salvarCliente(false)">Salvar</button>
     </div>
   </div>
 </div>
@@ -1885,6 +1888,7 @@
     document.getElementById('f-teste-horas-bloco').style.display = emTeste ? 'block' : 'none';
     document.getElementById('f-vencimento-bloco').style.display = emTeste ? 'none' : 'block';
     if (emTeste) setHorasTeste(2);
+    document.getElementById('btn-salvar-enviar-teste').style.display = (emTeste && tipoNegocioAtual === 'iptv') ? 'inline-block' : 'none';
   }
 
   function abrirModal() {
@@ -1933,7 +1937,7 @@
     document.getElementById('overlay').classList.add('open');
   }
 
-  async function salvarCliente() {
+  async function salvarCliente(enviarLink) {
     const id = document.getElementById('cliente-id').value;
     const nome = document.getElementById('f-nome').value.trim();
     const m3uLink = document.getElementById('f-m3u').value.trim();
@@ -1961,6 +1965,8 @@
       vencimento = new Date(vencimentoInput + 'T12:00:00').getTime();
     }
 
+    let clienteIdFinal = id;
+
     if (id) {
       await dbFetch(`${caminhoClientes()}/${id}.json`, {
         method: 'PATCH',
@@ -1971,10 +1977,12 @@
         nome, m3uLink, whatsapp, usuario, senha, servidor, aplicativosIds, planoValor, vencimento, emTeste,
         criadoEm: Date.now()
       };
-      await dbFetch(`${caminhoClientes()}.json`, {
+      const res = await dbFetch(`${caminhoClientes()}.json`, {
         method: 'POST',
         body: JSON.stringify(novoCliente)
       });
+      const data = await res.json();
+      clienteIdFinal = data?.name || '';
       if (!emTeste) {
         await registrarFinanceiro({ nome, servidor }, planoValor, 'cadastro');
       }
@@ -1982,6 +1990,16 @@
 
     fecharModal();
     await carregarClientes();
+
+    if (enviarLink && clienteIdFinal && whatsapp) {
+      const linkPainelCliente = `${window.location.origin}/meu-plano.html?rev=${uidRevendedor}&id=${clienteIdFinal}`;
+      const texto = preencherTemplateJS(
+        templatesAtuais.msgAtivarTeste || TEMPLATES_PADRAO.msgAtivarTeste,
+        { nome, vencimento, planoValor, servidor },
+        linkPainelCliente
+      );
+      window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(texto)}`, '_blank');
+    }
   }
 
   // ---- Menu ----
@@ -2836,6 +2854,7 @@
     msgVencido: 'Olá {nome}! Seu plano venceu em {data_vencimento} e está com pagamento pendente. Valor: R$ {valor_plano}. Vamos regularizar hoje pra não perder o acesso?',
     msgManual: 'Olá {nome}! Passando aqui sobre o seu plano, vencimento em {data_vencimento}. Qualquer coisa me chama!',
     msgLink: 'Olá {nome}! Acompanhe seu plano por aqui: {link}',
+    msgAtivarTeste: 'Olá {nome}! Seu teste foi liberado 🎉\nPra ver os dados de acesso, entra nesse link e clica no botão "Ativar notificações":\n{link}\nDepois disso os dados aparecem na hora. Qualquer dúvida, me chama!',
     msgTesteAcabando: 'Olá {nome}! Seu teste está acabando em breve. Gostou? Fala com a gente pra virar cliente oficial!',
     msgTesteAcabou: 'Olá {nome}! Seu teste terminou. Fala com a gente pra ativar seu plano oficial!',
     msgBemVindoOficial: 'Olá {nome}! Seu plano foi ativado com sucesso ✅\nVencimento: {data_vencimento}\nValor: R$ {valor_plano}\nSeja bem-vindo(a)!',
@@ -3365,7 +3384,7 @@
   async function abrirMensagens() {
     const res = await dbFetch(`${caminhoConfig()}/templates.json`);
     const templates = await res.json() || {};
-    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','msgLink','emailAssunto','emailCorpo'];
+    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','msgLink','msgAtivarTeste','emailAssunto','emailCorpo'];
     chaves.forEach(chave => {
       document.getElementById(`tpl-${chave}`).value = templates[chave] || TEMPLATES_PADRAO[chave] || '';
     });
@@ -3375,7 +3394,7 @@
     document.getElementById('overlay-mensagens').classList.remove('open');
   }
   async function salvarMensagens() {
-    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','msgLink','emailAssunto','emailCorpo'];
+    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','msgLink','msgAtivarTeste','emailAssunto','emailCorpo'];
     const templates = {};
     chaves.forEach(chave => {
       templates[chave] = document.getElementById(`tpl-${chave}`).value;
