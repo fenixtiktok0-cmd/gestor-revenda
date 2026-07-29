@@ -2866,6 +2866,19 @@
       `
     },
     {
+      titulo: '📊 Score do cliente',
+      html: `
+        <p>Ao lado do nome de cada cliente oficial (não vale pra cliente de teste), aparece um selo mostrando o histórico de pagamento dele:</p>
+        <ul>
+          <li><span class="guia-demo">🟢 Excelente pagador</span> — em dia, e sem histórico de atraso relevante</li>
+          <li><span class="guia-demo">🟡 Costuma atrasar</span> — está vencido agora (há menos de 7 dias) ou já renovou atrasado 3 vezes ou mais</li>
+          <li><span class="guia-demo">🔴 Alto risco de cancelamento</span> — está vencido há 7 dias ou mais</li>
+        </ul>
+        <p>Isso é calculado sozinho — toda vez que você renova um cliente que já estava vencido, o sistema conta como um atraso no histórico dele. Passa o mouse (ou toca no celular) em cima do selo pra ver o motivo exato.</p>
+        <p>Use isso pra priorizar quem cobrar primeiro: cliente 🔴 é quem mais precisa de atenção.</p>
+      `
+    },
+    {
       titulo: '🔔 Notificações do cliente',
       html: `
         <p>Na coluna "Status" da lista de clientes, tem um sininho ao lado do status dele:</p>
