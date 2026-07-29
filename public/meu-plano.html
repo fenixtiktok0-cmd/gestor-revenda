@@ -115,9 +115,9 @@
     }
 
     const [clienteRes, configRes, appsRes] = await Promise.all([
-      fetch(`${FIREBASE_DB}/revendedores/${revId}/clientes/${clienteId}.json`),
-      fetch(`${FIREBASE_DB}/revendedores/${revId}/config.json`),
-      fetch(`${FIREBASE_DB}/revendedores/${revId}/aplicativos.json`)
+      fetch(`${FIREBASE_DB}/revendedores/${revId}/clientes/${clienteId}.json`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_DB}/revendedores/${revId}/config.json`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_DB}/revendedores/${revId}/aplicativos.json`, { cache: 'no-store' })
     ]);
     const c = await clienteRes.json();
     const config = await configRes.json() || {};
@@ -156,7 +156,6 @@
     const temDadosAcesso = c.usuario || c.senha || appsDoCliente.length > 0;
 
     let dadosAcessoHtml = '';
-    let emailCapturaHtml = '';
 
     if (notifAtiva && temDadosAcesso) {
       const cores = ['#34D399', '#60A5FA', '#F472B6', '#A78BFA', '#FB923C', '#22D3EE'];
@@ -184,14 +183,18 @@
           ${credenciaisHtml}
         </div>
       `;
-    } else if (!notifAtiva && temDadosAcesso) {
-      emailCapturaHtml = `
-        <div style="margin-top:16px;">
-          <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px;">Seu e-mail (opcional)</label>
-          <input type="email" id="input-email-cliente" value="${c.email || ''}" placeholder="seuemail@exemplo.com">
-        </div>
-      `;
     }
+
+    const emailHtml = `
+      <div style="margin-top:16px;">
+        <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px;">Seu e-mail (pra receber avisos também por e-mail)</label>
+        <div style="display:flex; gap:6px;">
+          <input type="email" id="input-email-cliente" value="${c.email || ''}" placeholder="seuemail@exemplo.com" style="flex:1;">
+          <button id="btn-salvar-email" type="button" style="width:auto; margin-top:0; padding:0 16px; white-space:nowrap;">Salvar</button>
+        </div>
+        <div id="email-status" style="font-size:12px; margin-top:6px; display:none;"></div>
+      </div>
+    `;
 
     const botaoSuporteHtml = config.whatsappSuporte
       ? `<a class="btn-suporte" href="https://wa.me/${config.whatsappSuporte}?text=${encodeURIComponent('Olá! Sou o cliente ' + c.nome + ' e preciso de suporte.')}" target="_blank">${textoBotaoSuporte}</a>`
@@ -205,7 +208,7 @@
       <div class="linha"><span class="label">Valor</span><span class="mono">R$ ${Number(c.planoValor||0).toFixed(2)}</span></div>
       <div class="linha"><span class="label">${c.emTeste ? 'Teste termina em' : 'Vencimento'}</span><span class="mono">${vencimentoTexto}</span></div>
       <div class="linha"><span class="label">Situação</span><span class="status-pill ${statusClasse}">${statusTexto}</span></div>
-      ${emailCapturaHtml}
+      ${emailHtml}
       ${dadosAcessoHtml}
       <button id="btn-notif" ${notifAtiva ? 'disabled' : ''}>${notifAtiva ? 'Notificações ativadas ✓' : textoBotaoNotif}</button>
       ${botaoSuporteHtml}
@@ -213,6 +216,36 @@
 
     const botaoNotif = document.getElementById('btn-notif');
     if (botaoNotif && !notifAtiva) botaoNotif.onclick = ativarNotificacoes;
+
+    const botaoSalvarEmail = document.getElementById('btn-salvar-email');
+    if (botaoSalvarEmail) botaoSalvarEmail.onclick = salvarEmailCliente;
+  }
+
+  async function salvarEmailCliente() {
+    const input = document.getElementById('input-email-cliente');
+    const statusEl = document.getElementById('email-status');
+    const novoEmail = input.value.trim();
+
+    if (novoEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(novoEmail)) {
+      statusEl.textContent = '❌ Digita um e-mail válido.';
+      statusEl.style.color = 'var(--danger)';
+      statusEl.style.display = 'block';
+      return;
+    }
+
+    try {
+      await fetch(`${FIREBASE_DB}/revendedores/${revId}/clientes/${clienteId}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ email: novoEmail || null })
+      });
+      statusEl.textContent = '✅ E-mail salvo!';
+      statusEl.style.color = 'var(--ok)';
+      statusEl.style.display = 'block';
+    } catch (err) {
+      statusEl.textContent = '❌ Não deu pra salvar, tenta de novo.';
+      statusEl.style.color = 'var(--danger)';
+      statusEl.style.display = 'block';
+    }
   }
 
   async function ativarNotificacoes() {
