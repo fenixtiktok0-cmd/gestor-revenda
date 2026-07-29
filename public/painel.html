@@ -285,6 +285,11 @@
         </div>
       </div>
 
+      <div id="caixa-origem" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px;">
+        <div style="font-weight:600; font-size:13px; margin-bottom:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em;">📊 Origem dos cadastros</div>
+        <div id="lista-origem" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+      </div>
+
       <button class="btn btn-primary" style="width:100%; margin-bottom:16px; padding:13px;" onclick="abrirCriarRevendedor()">👑 + Criar revendedor</button>
 
       <div class="toolbar">
@@ -300,6 +305,10 @@
   </main>
 
   <button id="btn-atualizar-painel" onclick="atualizarPainelSemRecarregar()" title="Atualizar" style="position:fixed; bottom:20px; right:20px; width:48px; height:48px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--ok); font-size:20px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:60;">🔄</button>
+
+  <a id="btn-whatsapp-suporte" href="#" target="_blank" title="Falar com o suporte" style="display:none; position:fixed; bottom:20px; left:20px; width:52px; height:52px; border-radius:50%; background:#25D366; color:#fff; font-size:24px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:60; text-decoration:none;">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.148-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"></path><path d="M12.001 2C6.478 2 2 6.477 2 12c0 1.921.532 3.716 1.457 5.246L2 22l4.897-1.285A9.953 9.953 0 0 0 12.001 22C17.523 22 22 17.523 22 12S17.523 2 12.001 2zm0 18.09c-1.68 0-3.24-.494-4.552-1.343l-.327-.204-3.007.789.803-2.933-.213-.302A7.994 7.994 0 0 1 4.01 12c0-4.411 3.58-7.99 7.991-7.99 4.41 0 7.99 3.579 7.99 7.99 0 4.41-3.58 8.09-7.99 8.09z"></path></svg>
+  </a>
 </div>
 
 <div class="overlay" id="overlay-servidores">
@@ -588,6 +597,7 @@
     <div class="field"><label>Valor da mensalidade (R$)</label><input type="text" id="cp-mensalidade" placeholder="19.90"></div>
     <div class="field"><label>Percentual de comissão pra quem indica (%)</label><input type="text" id="cp-comissao-percentual" placeholder="40"></div>
     <div class="field"><label>Dia do mês em que você paga as comissões</label><input type="text" id="cp-dia-pagamento" placeholder="20"></div>
+    <div class="field"><label>WhatsApp de suporte da plataforma (com DDI, só números)</label><input type="text" id="cp-whatsapp-suporte" placeholder="5521999999999"></div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharConfigPlataforma()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarConfigPlataforma()">Salvar</button>
@@ -1056,8 +1066,23 @@
       document.getElementById('btn-header-indicados').style.display = 'inline-block';
       carregarClientes();
       carregarPercentualComissaoDestaque();
+      carregarBotaoWhatsappSuporte();
     }
   });
+
+  async function carregarBotaoWhatsappSuporte() {
+    if (uidRevendedor === MASTER_UID) return; // você é o suporte, não precisa falar com você mesmo
+    try {
+      const res = await dbFetch(`${FIREBASE_DB}/configPlataforma/whatsappSuportePlataforma.json`);
+      const numero = await res.json();
+      const btn = document.getElementById('btn-whatsapp-suporte');
+      if (numero) {
+        const texto = encodeURIComponent('Olá! Preciso de ajuda com o Zero Block.');
+        btn.href = `https://wa.me/${numero}?text=${texto}`;
+        btn.style.display = 'flex';
+      }
+    } catch (err) {}
+  }
 
   async function atualizarPainelSemRecarregar() {
     const btn = document.getElementById('btn-atualizar-painel');
@@ -2239,6 +2264,7 @@
     document.getElementById('cp-mensalidade').value = cfg.mensalidadeValor ?? 19.90;
     document.getElementById('cp-comissao-percentual').value = cfg.comissaoPercentual ?? 40;
     document.getElementById('cp-dia-pagamento').value = cfg.diaPagamentoComissao ?? 20;
+    document.getElementById('cp-whatsapp-suporte').value = cfg.whatsappSuportePlataforma || '';
     document.getElementById('overlay-config-plataforma').classList.add('open');
   }
   function fecharConfigPlataforma() {
@@ -2249,11 +2275,13 @@
     const mensalidadeValor = parseFloat(document.getElementById('cp-mensalidade').value) || 19.90;
     const comissaoPercentual = parseFloat(document.getElementById('cp-comissao-percentual').value) || 40;
     const diaPagamentoComissao = Math.min(28, Math.max(1, parseInt(document.getElementById('cp-dia-pagamento').value, 10) || 20));
+    const whatsappSuportePlataforma = document.getElementById('cp-whatsapp-suporte').value.replace(/\D/g, '');
     await dbFetch(`${FIREBASE_DB}/configPlataforma.json`, {
       method: 'PATCH',
-      body: JSON.stringify({ testeHoras, mensalidadeValor, comissaoPercentual, diaPagamentoComissao })
+      body: JSON.stringify({ testeHoras, mensalidadeValor, comissaoPercentual, diaPagamentoComissao, whatsappSuportePlataforma })
     });
     fecharConfigPlataforma();
+    carregarBotaoWhatsappSuporte();
     alert('Configurações da plataforma salvas!');
   }
 
@@ -2419,6 +2447,22 @@
     document.getElementById('rdash-ativos').textContent = ativos.length;
     document.getElementById('rdash-teste').textContent = emTeste.length;
     document.getElementById('rdash-vencidos').textContent = vencidos.length;
+
+    const rotulosOrigem = { google: '🔍 Google', youtube: '▶️ YouTube', facebook: '📘 Facebook', instagram: '📸 Instagram', indicacao: '👥 Indicação', outros: '❓ Outros' };
+    const contagem = {};
+    outros.forEach(r => {
+      const chave = r.origemCadastro || 'nao_informado';
+      contagem[chave] = (contagem[chave] || 0) + 1;
+    });
+    const containerOrigem = document.getElementById('lista-origem');
+    const chaves = Object.keys(contagem);
+    containerOrigem.innerHTML = chaves.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum revendedor ainda.</div>'
+      : chaves.sort((a,b) => contagem[b] - contagem[a]).map(chave => `
+        <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:13px;">
+          ${rotulosOrigem[chave] || '➖ Não informado'} <span class="mono" style="font-weight:700; color:var(--ok);">${contagem[chave]}</span>
+        </div>
+      `).join('');
 
     document.getElementById('busca-revendedores').value = '';
     renderizarListaRevendedoresMaster();
@@ -2758,11 +2802,11 @@
     },
     {
       titulo: '👤 Cadastro de clientes',
-      html: `
+      html: (iptv) => `
         <ol>
           <li>Clica no botão verde <b>"+ Novo cliente"</b>, no topo da tela.</li>
-          <li>Preenche nome, WhatsApp, servidor, valor do plano e vencimento.</li>
-          <li>Se o cliente já tem um painel IPTV, cola o link M3U dele no campo próprio e clica em <b>🔍 Buscar</b> — o sistema puxa usuário, senha, vencimento e até detecta o servidor sozinho (se você já tiver cadastrado o domínio daquele servidor).</li>
+          <li>Preenche nome, WhatsApp${iptv ? ', servidor' : ''}, valor do plano e vencimento.</li>
+          ${iptv ? '<li>Se o cliente já tem um painel IPTV, cola o link M3U dele no campo próprio e clica em <b>🔍 Buscar</b> — o sistema puxa usuário, senha, vencimento e até detecta o servidor sozinho (se você já tiver cadastrado o domínio daquele servidor).</li>' : ''}
         </ol>
         <p>Na lista de clientes, cada linha tem esses botões de ação:</p>
         <ul>
@@ -2785,17 +2829,18 @@
     },
     {
       titulo: '🔄 Renovação',
-      html: `
+      html: (iptv) => `
         <ol>
           <li>Clica no botão <span class="guia-demo" style="color:var(--ok);">🔄</span> na linha do cliente.</li>
           <li>Escolhe quantos dias renovar (chips de +15 a +360), ou digita uma data específica.</li>
-          <li>Se o cliente tiver link M3U cadastrado, aparece um botão extra <b>"📡 Sincronizar com servidor"</b> — puxa a data real de lá, sem você precisar calcular nada.</li>
+          ${iptv ? '<li>Se o cliente tiver link M3U cadastrado, aparece um botão extra <b>"📡 Sincronizar com servidor"</b> — puxa a data real de lá, sem você precisar calcular nada.</li>' : ''}
           <li>Depois de confirmar, o WhatsApp já abre sozinho com o comprovante pronto pra você mandar.</li>
         </ol>
       `
     },
     {
       titulo: '🖥️ Servidores e 📲 Aplicativos',
+      soIptv: true,
       html: `
         <ol>
           <li>No menu (☰), abre <b>🖥️ Servidores</b> pra cadastrar o nome do servidor e (opcional) o domínio do link M3U dele — isso é o que permite a busca automática funcionar.</li>
@@ -3015,14 +3060,17 @@
   }
 
   function abrirGuia() {
+    const ehIptv = tipoNegocioAtual !== 'generico';
     const container = document.getElementById('lista-guia');
-    container.innerHTML = CONTEUDO_GUIA.map((secao, i) => `
+    container.innerHTML = CONTEUDO_GUIA
+      .filter(secao => !secao.soIptv || ehIptv)
+      .map((secao, i) => `
       <div class="guia-item" id="guia-item-${i}">
         <div class="guia-q" onclick="toggleGuia(${i})">
           <span>${secao.titulo}</span>
           <span class="seta">▶</span>
         </div>
-        <div class="guia-a"><div class="guia-a-inner">${secao.html}</div></div>
+        <div class="guia-a"><div class="guia-a-inner">${typeof secao.html === 'function' ? secao.html(ehIptv) : secao.html}</div></div>
       </div>
     `).join('');
     document.getElementById('overlay-guia').classList.add('open');
