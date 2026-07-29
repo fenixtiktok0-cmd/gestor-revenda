@@ -57,6 +57,7 @@ module.exports = async (req, res) => {
     }
 
     let emailEnviado = false;
+    let emailMotivo = 'cliente não tem e-mail cadastrado';
     if (cliente.email) {
       try {
         const resultadoEmail = await resend.emails.send({
@@ -66,8 +67,10 @@ module.exports = async (req, res) => {
           text: corpo,
         });
         emailEnviado = !resultadoEmail.error;
+        emailMotivo = emailEnviado ? null : (resultadoEmail.error?.message || 'falha ao enviar pelo provedor de e-mail');
       } catch (err) {
         console.error('Erro ao enviar e-mail manual:', err.message);
+        emailMotivo = 'erro inesperado ao tentar enviar';
       }
     }
 
@@ -75,7 +78,7 @@ module.exports = async (req, res) => {
       await db.ref(`revendedores/${revId}/clientes/${clienteId}/ultimaNotificacao`).set({ tipo: 'manual', data: Date.now() });
     }
 
-    return res.status(200).json({ ok: true, enviado: pushEnviado || emailEnviado, pushEnviado, emailEnviado, motivo: pushMotivo });
+    return res.status(200).json({ ok: true, enviado: pushEnviado || emailEnviado, pushEnviado, emailEnviado, motivo: pushMotivo, emailMotivo });
   } catch (err) {
     console.error('Erro em /api/notificar-manual:', err);
     return res.status(500).json({ erro: 'Erro interno' });
