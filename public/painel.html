@@ -150,6 +150,7 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirRemarketing();">📣 Remarketing</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirNotificacoes();">🔔 Notificações</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirFinanceiro();">💰 Financeiro</button>
+        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirRelatorios();">📈 Relatórios</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirMensagens();">✉️ Mensagens</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirConfiguracoes();">⚙️ Configurações</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirDivulgacao();">📣 Divulgação</button>
@@ -764,6 +765,15 @@
   </div>
 </div>
 
+<div class="overlay" id="overlay-relatorios">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>📈 Relatórios</h2><button class="modal-close-x" onclick="fecharRelatorios()">✕</button></div>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:16px;">Comparando esse mês com o mês passado</p>
+    <div id="lista-relatorios"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharRelatorios()">Fechar</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay-suporte">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header"><h2>🎫 Suporte</h2><button class="modal-close-x" onclick="fecharSuporte()">✕</button></div>
@@ -1046,7 +1056,11 @@
     const ids = Array.from(selecionados);
     if (ids.length === 0) return;
     if (!confirm(`Excluir ${ids.length} cliente(s)? Isso não pode ser desfeito.`)) return;
-    await Promise.all(ids.map(id => dbFetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' })));
+    await Promise.all(ids.map(async id => {
+      const c = clientes.find(x => x.id === id);
+      if (c && !c.emTeste) await registrarExclusao(c);
+      return dbFetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
+    }));
     selecionados.clear();
     document.getElementById('chk-selecionar-todos').checked = false;
     await carregarClientes();
@@ -1446,6 +1460,9 @@
 
   function caminhoClientes() {
     return `${FIREBASE_DB}/revendedores/${uidRevendedor}/clientes`;
+  }
+  function caminhoExclusoes() {
+    return `${FIREBASE_DB}/revendedores/${uidRevendedor}/exclusoesClientes`;
   }
 
   // Formata um timestamp pro formato de <input type="date"> usando o
@@ -3065,6 +3082,92 @@
     fecharAvisos();
   }
 
+  // ---- Relatórios (estatísticas comparando mês atual x mês passado) ----
+  async function abrirRelatorios() {
+    const container = document.getElementById('lista-relatorios');
+    container.innerHTML = '<div class="loading" style="padding:20px;">Calculando...</div>';
+    document.getElementById('overlay-relatorios').classList.add('open');
+
+    const [finRes, excRes] = await Promise.all([
+      dbFetch(`${caminhoFinanceiro()}.json`),
+      dbFetch(`${caminhoExclusoes()}.json`)
+    ]);
+    const financeiro = Object.values((await finRes.json()) || {});
+    const exclusoes = Object.values((await excRes.json()) || {});
+
+    const hoje = new Date();
+    const mesAtualChave = chaveMes(Date.now());
+    const mesPassadoData = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 15);
+    const mesPassadoChave = chaveMes(mesPassadoData.getTime());
+
+    const novosEsteMs = financeiro.filter(f => f.tipo === 'cadastro' && chaveMes(f.data) === mesAtualChave).length;
+    const novosMesPassado = financeiro.filter(f => f.tipo === 'cadastro' && chaveMes(f.data) === mesPassadoChave).length;
+
+    const renovEsteMs = financeiro.filter(f => f.tipo === 'renovacao' && chaveMes(f.data) === mesAtualChave).length;
+    const renovMesPassado = financeiro.filter(f => f.tipo === 'renovacao' && chaveMes(f.data) === mesPassadoChave).length;
+
+    const perdidosEsteMs = exclusoes.filter(e => chaveMes(e.data) === mesAtualChave).length;
+    const perdidosMesPassado = exclusoes.filter(e => chaveMes(e.data) === mesPassadoChave).length;
+
+    const receitaEsteMs = financeiro.filter(f => chaveMes(f.data) === mesAtualChave).reduce((s,f) => s + (f.valor||0), 0);
+    const receitaMesPassado = financeiro.filter(f => chaveMes(f.data) === mesPassadoChave).reduce((s,f) => s + (f.valor||0), 0);
+    const variacaoReceita = receitaMesPassado > 0 ? ((receitaEsteMs - receitaMesPassado) / receitaMesPassado * 100) : null;
+
+    const clientesOficiais = clientes.filter(c => !c.emTeste);
+    const emRisco = clientesOficiais.filter(c => {
+      const s = calcularScoreCliente(c);
+      return s && (s.emoji === '🔴' || s.emoji === '🟡');
+    }).length;
+
+    function linhaComparativa(label, atual, passado, icone) {
+      const diff = atual - passado;
+      const seta = diff > 0 ? '📈' : diff < 0 ? '📉' : '➖';
+      const corDiff = diff > 0 ? 'var(--ok)' : diff < 0 ? 'var(--danger)' : 'var(--text-muted)';
+      const textoDiff = diff === 0 ? 'igual ao mês passado' : `${diff > 0 ? '+' : ''}${diff} em relação ao mês passado`;
+      return `
+        <div class="lista-item">
+          <div>
+            <div style="font-weight:600;">${icone} ${label}</div>
+            <div style="font-size:12px; color:${corDiff};">${seta} ${textoDiff}</div>
+          </div>
+          <div class="mono" style="font-size:22px; font-weight:700;">${atual}</div>
+        </div>
+      `;
+    }
+
+    let html = '';
+    html += linhaComparativa('Clientes novos esse mês', novosEsteMs, novosMesPassado, '🆕');
+    html += linhaComparativa('Renovações feitas esse mês', renovEsteMs, renovMesPassado, '🔄');
+    html += linhaComparativa('Clientes perdidos esse mês', perdidosEsteMs, perdidosMesPassado, '👋');
+
+    html += `
+      <div class="lista-item">
+        <div>
+          <div style="font-weight:600;">💰 Receita esse mês</div>
+          <div style="font-size:12px; color:${variacaoReceita === null ? 'var(--text-muted)' : (variacaoReceita >= 0 ? 'var(--ok)' : 'var(--danger)')};">
+            ${variacaoReceita === null ? 'sem comparação (mês passado sem dados)' : `${variacaoReceita >= 0 ? '📈 +' : '📉 '}${variacaoReceita.toFixed(1)}% em relação ao mês passado`}
+          </div>
+        </div>
+        <div class="mono" style="font-size:22px; font-weight:700; color:var(--ok);">R$ ${receitaEsteMs.toFixed(2)}</div>
+      </div>
+    `;
+
+    html += `
+      <div class="lista-item">
+        <div>
+          <div style="font-weight:600;">⚠️ Clientes em risco agora</div>
+          <div style="font-size:12px; color:var(--text-muted);">soma de 🔴 alto risco + 🟡 costuma atrasar</div>
+        </div>
+        <div class="mono" style="font-size:22px; font-weight:700; color:${emRisco > 0 ? 'var(--warn)' : 'var(--ok)'};">${emRisco}</div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+  function fecharRelatorios() {
+    document.getElementById('overlay-relatorios').classList.remove('open');
+  }
+
   function abrirDivulgacao() {
     formatoBannerAtual = 'post';
     document.getElementById('overlay-divulgacao').classList.add('open');
@@ -3699,9 +3802,18 @@
     }
   }
 
+  async function registrarExclusao(cliente) {
+    await dbFetch(`${caminhoExclusoes()}.json`, {
+      method: 'POST',
+      body: JSON.stringify({ nome: cliente.nome, planoValor: cliente.planoValor || 0, data: Date.now() })
+    });
+  }
+
   async function excluirCliente(id) {
     if (!acessoLiberado) { alert('Seu período de teste terminou. Assine pra voltar a gerenciar clientes.'); return; }
     if (!confirm('Excluir esse cliente?')) return;
+    const c = clientes.find(x => x.id === id);
+    if (c && !c.emTeste) await registrarExclusao(c);
     await dbFetch(`${caminhoClientes()}/${id}.json`, { method: 'DELETE' });
     await carregarClientes();
   }
