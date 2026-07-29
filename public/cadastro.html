@@ -57,7 +57,7 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
   }
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-  .field input {
+  .field input, .field select {
     width: 100%; background: #1B232D; border: 1px solid var(--border);
     border-radius: 8px; padding: 11px 12px; color: var(--text);
     font-family: 'Inter', sans-serif; font-size: 14px; box-sizing: border-box;
@@ -91,6 +91,25 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
   <div class="field">
     <label>Senha (mínimo 6 caracteres)</label>
     <input type="password" id="input-senha" placeholder="••••••••">
+  </div>
+  <div class="field">
+    <label>Qual o tipo do seu serviço?</label>
+    <select id="input-tipo-negocio">
+      <option value="iptv">IPTV / Streaming</option>
+      <option value="generico">Outro tipo de negócio</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Como você conheceu a gente?</label>
+    <select id="input-origem">
+      <option value="">Selecione...</option>
+      <option value="google">Google</option>
+      <option value="youtube">YouTube</option>
+      <option value="facebook">Facebook</option>
+      <option value="instagram">Instagram</option>
+      <option value="indicacao">Indicação de alguém</option>
+      <option value="outros">Outros</option>
+    </select>
   </div>
 
   <button id="btn-criar" onclick="criarConta()">Criar minha conta</button>
@@ -134,6 +153,8 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
     const nome = document.getElementById('input-nome').value.trim();
     const email = document.getElementById('input-email').value.trim();
     const senha = document.getElementById('input-senha').value;
+    const tipoNegocio = document.getElementById('input-tipo-negocio').value;
+    const origemCadastro = document.getElementById('input-origem').value;
     const erroEl = document.getElementById('erro-cadastro');
     const btn = document.getElementById('btn-criar');
 
@@ -170,7 +191,11 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
           ativo: true,
           assinaturaStatus: 'teste',
           testeAte: Date.now() + testeHoras * 60 * 60 * 1000,
-          indicadoPor: refUid || null
+          indicadoPor: refUid || null,
+          origemCadastro: origemCadastro || null,
+          config: {
+            tipoNegocio: tipoNegocio
+          }
         })
       });
 
