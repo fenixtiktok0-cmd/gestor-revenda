@@ -201,7 +201,7 @@
       ${logoHtml}
       <h1>Olá, ${c.nome}</h1>
       <div class="sub">${marca.nome ? `Status do seu plano · ${marca.nome}` : 'Status do seu plano'}</div>
-      <div class="linha"><span class="label">Servidor</span><span class="mono">${c.servidor || '—'}</span></div>
+      ${c.servidor ? `<div class="linha"><span class="label">Servidor</span><span class="mono">${c.servidor}</span></div>` : ''}
       <div class="linha"><span class="label">Valor</span><span class="mono">R$ ${Number(c.planoValor||0).toFixed(2)}</span></div>
       <div class="linha"><span class="label">${c.emTeste ? 'Teste termina em' : 'Vencimento'}</span><span class="mono">${vencimentoTexto}</span></div>
       <div class="linha"><span class="label">Situação</span><span class="status-pill ${statusClasse}">${statusTexto}</span></div>
