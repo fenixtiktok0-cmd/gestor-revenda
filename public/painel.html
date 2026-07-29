@@ -103,12 +103,9 @@
   .dia-chip.active, .base-chip.active { background:var(--ok); color:#06231A; border-color:var(--ok); font-weight:600; }
 
   @media (max-width:720px) {
-    table { display:block; border:none; background:none; }
-    thead { display:none; }
-    tbody, tr, td { display:block; width:100%; }
-    tbody tr { border-bottom:1px solid var(--border); padding:14px 16px; }
-    tbody td { border:none; padding:4px 0; display:flex; justify-content:space-between; }
-    tbody td::before { content: attr(data-label); color:var(--text-muted); font-size:12px; }
+    table { display:block; overflow-x:auto; white-space:nowrap; -webkit-overflow-scrolling:touch; }
+    thead, tbody { display:table; width:100%; min-width:640px; }
+    tbody td::before { content: none; }
     .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
     .stat-card { padding: 14px 16px; }
     .stat-card .value { font-size: 22px; }
@@ -299,6 +296,8 @@
       <div id="lista-revendedores-master"></div>
     </div>
   </main>
+
+  <button id="btn-atualizar-painel" onclick="atualizarPainelSemRecarregar()" title="Atualizar" style="position:fixed; bottom:20px; right:20px; width:48px; height:48px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--ok); font-size:20px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:60;">🔄</button>
 </div>
 
 <div class="overlay" id="overlay-servidores">
@@ -458,6 +457,7 @@
     <div class="field"><label>No dia do vencimento</label><textarea id="tpl-msgVencimento" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
     <div class="field"><label>Vencido (cobrança)</label><textarea id="tpl-msgVencido" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
     <div class="field"><label>Push manual (botão 🔔)</label><textarea id="tpl-msgManual" class="campo-com-variavel" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
+    <div class="field"><label>Mensagem do link do painel (botão 🔗)</label><textarea id="tpl-msgLink" class="campo-com-variavel" rows="2" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
     <div class="field"><label>Assunto do e-mail</label><input type="text" id="tpl-emailAssunto" class="campo-com-variavel"></div>
     <div class="field"><label>Corpo do e-mail</label><textarea id="tpl-emailCorpo" class="campo-com-variavel" rows="4" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;"></textarea></div>
 
@@ -955,6 +955,7 @@
   const MASTER_UID = 'G8SAyrR7fFcslRmSIBUosRwA6QF2';
   let uidRevendedor = null;
   let clientes = [];
+  let templatesAtuais = {};
   let selecionados = new Set();
   let filtroAtual = 'todos';
 
@@ -1043,6 +1044,19 @@
       carregarPercentualComissaoDestaque();
     }
   });
+
+  async function atualizarPainelSemRecarregar() {
+    const btn = document.getElementById('btn-atualizar-painel');
+    btn.style.transition = 'transform 0.6s ease';
+    btn.style.transform = 'rotate(360deg)';
+    if (uidRevendedor === MASTER_UID) {
+      await carregarDashboardRevendedores();
+    } else {
+      await carregarClientes();
+      await verificarAcesso();
+    }
+    setTimeout(() => { btn.style.transform = 'rotate(0deg)'; }, 100);
+  }
 
   function toggleAvisos() {
     const conteudo = document.getElementById('conteudo-avisos');
@@ -1396,6 +1410,8 @@
     const res = await dbFetch(`${caminhoClientes()}.json`);
     const data = await res.json() || {};
     clientes = Object.entries(data).map(([id, c]) => ({ id, ...c }));
+    const templatesRes = await dbFetch(`${caminhoConfig()}/templates.json`);
+    templatesAtuais = await templatesRes.json() || {};
     await carregarServidores();
     await carregarAplicativos();
     atualizarStats();
@@ -1689,7 +1705,7 @@
               ${c.emTeste ? `<button class="icon-btn" style="color:#60A5FA; border-color:#60A5FA;" onclick="abrirAtivarOficial('${c.id}')" title="Ativar como oficial">✅</button>` : ''}
               <button class="icon-btn" onclick="abrirRenovacao('${c.id}')" title="Renovar" style="color:var(--ok);">🔄</button>
               <button class="icon-btn" onclick="enviarPushManual('${c.id}')" title="Enviar push">🔔</button>
-              <a class="icon-btn" href="https://wa.me/${c.whatsapp}?text=${encodeURIComponent('Olá ' + c.nome + '! Acompanhe seu plano por aqui: ' + window.location.origin + '/meu-plano.html?rev=' + uidRevendedor + '&id=' + c.id)}" target="_blank" title="Enviar link do painel">🔗</a>
+              <a class="icon-btn" href="https://wa.me/${c.whatsapp}?text=${encodeURIComponent(preencherTemplateJS(templatesAtuais.msgLink || TEMPLATES_PADRAO.msgLink, c, window.location.origin + '/meu-plano.html?rev=' + uidRevendedor + '&id=' + c.id))}" target="_blank" title="Enviar link do painel">🔗</a>
               <button class="icon-btn" onclick="editarCliente('${c.id}')" title="Editar">✏️</button>
               <button class="icon-btn del" onclick="excluirCliente('${c.id}')" title="Excluir">🗑️</button>
             </div>
@@ -2138,14 +2154,15 @@
   function fecharRemarketing() {
     document.getElementById('overlay-remarketing').classList.remove('open');
   }
-  function preencherTemplateJS(template, c) {
+  function preencherTemplateJS(template, c, linkPainelCliente) {
     const dias = diasAte(c.vencimento);
     return (template || '')
       .replaceAll('{nome}', c.nome || '')
       .replaceAll('{data_vencimento}', new Date(c.vencimento).toLocaleDateString('pt-BR'))
       .replaceAll('{valor_plano}', Number(c.planoValor || 0).toFixed(2))
       .replaceAll('{servidor}', c.servidor || '')
-      .replaceAll('{dias_restantes}', String(dias));
+      .replaceAll('{dias_restantes}', String(dias))
+      .replaceAll('{link}', linkPainelCliente || '');
   }
   async function enviarEmailMassa() {
     const lista = clientesFiltradosRemarketing().filter(c => c.email);
@@ -2697,6 +2714,7 @@
     msgVencimento: 'Olá {nome}! Seu plano vence hoje ({data_vencimento}). Valor: R$ {valor_plano}. Renova pra não perder o acesso?',
     msgVencido: 'Olá {nome}! Seu plano venceu em {data_vencimento} e está com pagamento pendente. Valor: R$ {valor_plano}. Vamos regularizar hoje pra não perder o acesso?',
     msgManual: 'Olá {nome}! Passando aqui sobre o seu plano, vencimento em {data_vencimento}. Qualquer coisa me chama!',
+    msgLink: 'Olá {nome}! Acompanhe seu plano por aqui: {link}',
     msgTesteAcabando: 'Olá {nome}! Seu teste está acabando em breve. Gostou? Fala com a gente pra virar cliente oficial!',
     msgTesteAcabou: 'Olá {nome}! Seu teste terminou. Fala com a gente pra ativar seu plano oficial!',
     msgBemVindoOficial: 'Olá {nome}! Seu plano foi ativado com sucesso ✅\nVencimento: {data_vencimento}\nValor: R$ {valor_plano}\nSeja bem-vindo(a)!',
@@ -3012,7 +3030,7 @@
   async function abrirMensagens() {
     const res = await dbFetch(`${caminhoConfig()}/templates.json`);
     const templates = await res.json() || {};
-    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','emailAssunto','emailCorpo'];
+    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','msgLink','emailAssunto','emailCorpo'];
     chaves.forEach(chave => {
       document.getElementById(`tpl-${chave}`).value = templates[chave] || TEMPLATES_PADRAO[chave] || '';
     });
@@ -3022,7 +3040,7 @@
     document.getElementById('overlay-mensagens').classList.remove('open');
   }
   async function salvarMensagens() {
-    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','emailAssunto','emailCorpo'];
+    const chaves = ['msg7dias','msg3dias','msgVencimento','msgVencido','msgManual','msgLink','emailAssunto','emailCorpo'];
     const templates = {};
     chaves.forEach(chave => {
       templates[chave] = document.getElementById(`tpl-${chave}`).value;
