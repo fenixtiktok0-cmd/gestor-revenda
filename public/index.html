@@ -360,9 +360,9 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
         <p>Avisos de vencimento chegam sozinhos, 7 dias antes, 3 dias antes, no dia e depois de vencido — sem WhatsApp, sem risco.</p>
       </div>
       <div class="feature-card">
-        <div class="ico">🔗</div>
-        <h3>Sincronização com o servidor</h3>
-        <p>Cola o link do painel do cliente e o sistema puxa usuário, senha e vencimento sozinho — zero digitação manual.</p>
+        <div class="ico">🧾</div>
+        <h3>Cadastro rápido de clientes</h3>
+        <p>Nome, contato, valor e vencimento — em menos de um minuto o cliente já está no seu controle, com renovação automática de data.</p>
       </div>
       <div class="feature-card">
         <div class="ico">💬</div>
@@ -508,7 +508,7 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
       <div class="price-tag" id="price-tag">R$ 19,90 <span>/mês</span></div>
       <div style="font-size:13px; color:var(--text-muted); position:relative;">depois do período de teste</div>
       <ul class="price-list">
-        <li><span class="check">✓</span> Clientes, servidores e apps ilimitados</li>
+        <li><span class="check">✓</span> Clientes ilimitados</li>
         <li><span class="check">✓</span> Push e e-mail automáticos</li>
         <li><span class="check">✓</span> Você paga sua mensalidade por PIX ou cartão, sem burocracia</li>
         <li><span class="check">✓</span> Link de indicação com comissão automática</li>
@@ -562,6 +562,10 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
   <div class="wrap">Zero Block — o gestor que não coloca seu WhatsApp em risco.</div>
 </footer>
 
+<a id="btn-whatsapp-suporte" href="#" target="_blank" style="display:none; position:fixed; bottom:20px; left:20px; width:52px; height:52px; border-radius:50%; background:#25D366; color:#fff; font-size:24px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:60; text-decoration:none;">
+  <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.148-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"></path><path d="M12.001 2C6.478 2 2 6.477 2 12c0 1.921.532 3.716 1.457 5.246L2 22l4.897-1.285A9.953 9.953 0 0 0 12.001 22C17.523 22 22 17.523 22 12S17.523 2 12.001 2zm0 18.09c-1.68 0-3.24-.494-4.552-1.343l-.327-.204-3.007.789.803-2.933-.213-.302A7.994 7.994 0 0 1 4.01 12c0-4.411 3.58-7.99 7.991-7.99 4.41 0 7.99 3.579 7.99 7.99 0 4.41-3.58 8.09-7.99 8.09z"></path></svg>
+</a>
+
 <script>
   // Repassa o ?ref= (link de indicação) pra tela de cadastro, sem perder
   // a indicação de quem mandou o link da página de vendas. Guarda também
@@ -593,6 +597,13 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
 
       const disclaimerPct = document.getElementById('calc-disclaimer-pct');
       if (disclaimerPct) disclaimerPct.textContent = `${percentual}%`;
+
+      if (cfg.whatsappSuportePlataforma) {
+        const btnWhats = document.getElementById('btn-whatsapp-suporte');
+        const texto = encodeURIComponent('Olá! Vim pelo site e tenho uma dúvida sobre o Zero Block.');
+        btnWhats.href = `https://wa.me/${cfg.whatsappSuportePlataforma}?text=${texto}`;
+        btnWhats.style.display = 'flex';
+      }
     } catch (err) {
       // Se der erro, os valores padrão que já estão escritos no HTML continuam valendo.
     }
