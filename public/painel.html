@@ -2978,6 +2978,12 @@
   let formatoBannerAtual = 'post';
 
   // ---- Avisos do admin ----
+  function escaparHtml(texto) {
+    const div = document.createElement('div');
+    div.textContent = texto || '';
+    return div.innerHTML;
+  }
+
   function caminhoAvisos() {
     return `${FIREBASE_DB}/avisos`;
   }
@@ -3001,9 +3007,9 @@
       : lista.map(a => `
         <div class="lista-item" style="align-items:flex-start;">
           <div>
-            <div style="font-weight:600;">${a.titulo}</div>
+            <div style="font-weight:600;">${escaparHtml(a.titulo)}</div>
             <div style="font-size:12px; color:var(--text-muted); margin:3px 0;">${new Date(a.criadoEm).toLocaleString('pt-BR')}</div>
-            <div style="font-size:13px;">${a.mensagem}</div>
+            <div style="font-size:13px;">${escaparHtml(a.mensagem)}</div>
           </div>
           <button class="del-mini" onclick="excluirAviso('${a.id}')">remover</button>
         </div>
@@ -3062,9 +3068,9 @@
       empty.style.display = 'none';
       container.innerHTML = ultimaListaAvisos.map(a => `
         <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px;">
-          <div style="font-weight:600; font-size:14px;">${a.titulo}</div>
+          <div style="font-weight:600; font-size:14px;">${escaparHtml(a.titulo)}</div>
           <div style="font-size:11px; color:var(--text-muted); margin:3px 0 8px;">${new Date(a.criadoEm).toLocaleString('pt-BR')}</div>
-          <div style="font-size:13px;">${a.mensagem}</div>
+          <div style="font-size:13px;">${escaparHtml(a.mensagem)}</div>
         </div>
       `).join('');
     }
