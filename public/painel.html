@@ -135,6 +135,7 @@
     <button class="btn" style="font-size:13px; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:700;" onclick="abrirGuia()">📖 Guia do painel</button>
     <button class="btn" id="btn-header-link" style="display:none; font-size:13px;" onclick="abrirLinkIndicacao()">🔗 Link de indicação</button>
     <button class="btn" id="btn-header-indicados" style="display:none; font-size:13px;" onclick="abrirIndicados()">👥 Minhas indicações</button>
+    <button class="btn" id="btn-header-avisos" style="display:none; font-size:13px; position:relative;" onclick="abrirAvisos()">📢 Avisos<span id="badge-avisos-nao-lidos" style="display:none; position:absolute; top:-6px; right:-6px; background:var(--danger); color:#fff; font-size:10px; font-weight:700; border-radius:100px; padding:2px 6px; min-width:16px; text-align:center;"></span></button>
   </div>
 
   <div class="overlay" id="overlay-menu">
@@ -155,6 +156,7 @@
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirSuporte();">🎫 Suporte</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirTutoriais();">🎬 Tutoriais</button>
         <button class="btn" id="btn-menu-chamados" style="display:none; text-align:left;" onclick="fecharMenu(); abrirChamadosAdmin();">🎫 Chamados</button>
+        <button class="btn" id="btn-menu-avisos-admin" style="display:none; text-align:left;" onclick="fecharMenu(); abrirGerenciarAvisos();">📢 Avisos (gerenciar)</button>
         <button class="btn" id="btn-menu-comissionamento" style="display:none; text-align:left;" onclick="fecharMenu(); abrirComissionamento();">💰 Comissionamento</button>
         <button class="btn" id="btn-menu-config-plataforma" style="display:none; text-align:left;" onclick="fecharMenu(); abrirConfigPlataforma();">🔧 Configurações da Plataforma</button>
         <button class="btn" id="btn-criar-revendedor" style="display:none; text-align:left; background:linear-gradient(135deg,#FBBF24,#F59E0B); border-color:#F59E0B; color:#412402; font-weight:600;" onclick="fecharMenu(); abrirCriarRevendedor();">👑 Criar revendedor</button>
@@ -739,6 +741,29 @@
   </div>
 </div>
 
+<div class="overlay" id="overlay-gerenciar-avisos">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h2>📢 Avisos — gerenciar</h2><button class="modal-close-x" onclick="fecharGerenciarAvisos()">✕</button></div>
+    <div class="field"><label>Título</label><input type="text" id="aviso-titulo" placeholder="Ex: Manutenção programada"></div>
+    <div class="field"><label>Mensagem</label><textarea id="aviso-mensagem" rows="3" style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;" placeholder="Descreve o aviso pra todos os revendedores..."></textarea></div>
+    <button class="btn btn-primary" style="width:100%;" onclick="criarAviso()">Publicar aviso</button>
+    <h3 style="font-size:14px; margin-top:22px;">Avisos publicados</h3>
+    <div id="lista-avisos-admin" style="max-height:260px; overflow-y:auto; margin-top:10px;"></div>
+    <div class="modal-actions"><button class="btn" onclick="fecharGerenciarAvisos()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-avisos">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header"><h2>📢 Avisos</h2><button class="modal-close-x" onclick="fecharAvisos()">✕</button></div>
+    <div id="lista-avisos-revendedor" style="max-height:400px; overflow-y:auto;"></div>
+    <div class="empty-state" id="empty-avisos" style="display:none; padding:20px;">Nenhum aviso publicado ainda.</div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" style="width:100%;" onclick="marcarAvisosComoLidos()">✓ Marcar tudo como lido</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay-suporte">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header"><h2>🎫 Suporte</h2><button class="modal-close-x" onclick="fecharSuporte()">✕</button></div>
@@ -1060,6 +1085,7 @@
       document.getElementById('btn-menu-comissionamento').style.display = 'block';
       document.getElementById('btn-menu-config-plataforma').style.display = 'block';
       document.getElementById('btn-menu-chamados').style.display = 'block';
+      document.getElementById('btn-menu-avisos-admin').style.display = 'block';
       carregarDashboardRevendedores();
     } else {
       document.getElementById('btn-header-link').style.display = 'inline-block';
@@ -1067,6 +1093,7 @@
       carregarClientes();
       carregarPercentualComissaoDestaque();
       carregarBotaoWhatsappSuporte();
+      verificarAvisosNaoLidos();
     }
   });
 
@@ -2932,6 +2959,111 @@
 
   // ---- Divulgação (gerador de banner) ----
   let formatoBannerAtual = 'post';
+
+  // ---- Avisos do admin ----
+  function caminhoAvisos() {
+    return `${FIREBASE_DB}/avisos`;
+  }
+
+  async function abrirGerenciarAvisos() {
+    document.getElementById('aviso-titulo').value = '';
+    document.getElementById('aviso-mensagem').value = '';
+    await renderizarListaAvisosAdmin();
+    document.getElementById('overlay-gerenciar-avisos').classList.add('open');
+  }
+  function fecharGerenciarAvisos() {
+    document.getElementById('overlay-gerenciar-avisos').classList.remove('open');
+  }
+  async function renderizarListaAvisosAdmin() {
+    const res = await dbFetch(`${caminhoAvisos()}.json`);
+    const data = await res.json() || {};
+    const lista = Object.entries(data).map(([id, a]) => ({ id, ...a })).sort((a,b) => b.criadoEm - a.criadoEm);
+    const container = document.getElementById('lista-avisos-admin');
+    container.innerHTML = lista.length === 0
+      ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum aviso publicado ainda.</div>'
+      : lista.map(a => `
+        <div class="lista-item" style="align-items:flex-start;">
+          <div>
+            <div style="font-weight:600;">${a.titulo}</div>
+            <div style="font-size:12px; color:var(--text-muted); margin:3px 0;">${new Date(a.criadoEm).toLocaleString('pt-BR')}</div>
+            <div style="font-size:13px;">${a.mensagem}</div>
+          </div>
+          <button class="del-mini" onclick="excluirAviso('${a.id}')">remover</button>
+        </div>
+      `).join('');
+  }
+  async function criarAviso() {
+    const titulo = document.getElementById('aviso-titulo').value.trim();
+    const mensagem = document.getElementById('aviso-mensagem').value.trim();
+    if (!titulo || !mensagem) { alert('Preenche o título e a mensagem.'); return; }
+
+    await dbFetch(`${caminhoAvisos()}.json`, {
+      method: 'POST',
+      body: JSON.stringify({ titulo, mensagem, criadoEm: Date.now() })
+    });
+
+    document.getElementById('aviso-titulo').value = '';
+    document.getElementById('aviso-mensagem').value = '';
+    await renderizarListaAvisosAdmin();
+    alert('✅ Aviso publicado! Todo revendedor vai ver na próxima vez que entrar.');
+  }
+  async function excluirAviso(id) {
+    if (!confirm('Remover esse aviso?')) return;
+    await dbFetch(`${caminhoAvisos()}/${id}.json`, { method: 'DELETE' });
+    await renderizarListaAvisosAdmin();
+  }
+
+  let ultimaListaAvisos = [];
+  async function verificarAvisosNaoLidos() {
+    const [avisosRes, meuRes] = await Promise.all([
+      dbFetch(`${caminhoAvisos()}.json`),
+      dbFetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}/ultimoAvisoLidoEm.json`)
+    ]);
+    const data = await avisosRes.json() || {};
+    const ultimoLido = (await meuRes.json()) || 0;
+    ultimaListaAvisos = Object.entries(data).map(([id, a]) => ({ id, ...a })).sort((a,b) => b.criadoEm - a.criadoEm);
+
+    const naoLidos = ultimaListaAvisos.filter(a => a.criadoEm > ultimoLido);
+    const badge = document.getElementById('badge-avisos-nao-lidos');
+    document.getElementById('btn-header-avisos').style.display = 'inline-block';
+    if (naoLidos.length > 0) {
+      badge.textContent = naoLidos.length;
+      badge.style.display = 'block';
+      abrirAvisos(); // já abre sozinho, avisando na hora que loga
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function abrirAvisos() {
+    const container = document.getElementById('lista-avisos-revendedor');
+    const empty = document.getElementById('empty-avisos');
+    if (ultimaListaAvisos.length === 0) {
+      container.innerHTML = '';
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      container.innerHTML = ultimaListaAvisos.map(a => `
+        <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+          <div style="font-weight:600; font-size:14px;">${a.titulo}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin:3px 0 8px;">${new Date(a.criadoEm).toLocaleString('pt-BR')}</div>
+          <div style="font-size:13px;">${a.mensagem}</div>
+        </div>
+      `).join('');
+    }
+    document.getElementById('overlay-avisos').classList.add('open');
+  }
+  function fecharAvisos() {
+    document.getElementById('overlay-avisos').classList.remove('open');
+  }
+  async function marcarAvisosComoLidos() {
+    await dbFetch(`${FIREBASE_DB}/revendedores/${uidRevendedor}/ultimoAvisoLidoEm.json`, {
+      method: 'PUT',
+      body: JSON.stringify(Date.now())
+    });
+    document.getElementById('badge-avisos-nao-lidos').style.display = 'none';
+    fecharAvisos();
+  }
 
   function abrirDivulgacao() {
     formatoBannerAtual = 'post';
