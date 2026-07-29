@@ -91,6 +91,8 @@
   .guia-a-inner ol, .guia-a-inner ul { padding-left:20px; margin:8px 0; }
   .guia-a-inner li { margin-bottom:6px; }
   .guia-demo { display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:12px; margin:0 2px; }
+
+  body.negocio-generico .campo-iptv { display:none !important; }
   .lista-item:last-child { border-bottom:none; }
   .del-mini { background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; }
 
@@ -139,11 +141,11 @@
     <div class="modal" style="max-width:340px;">
       <div class="modal-header"><h2>Menu</h2><button class="modal-close-x" onclick="fecharMenu()">✕</button></div>
       <div style="display:flex; flex-direction:column; gap:8px;">
-        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirTrocarDominio();">🔗 Trocar domínio M3U em massa</button>
+        <button class="btn campo-iptv" style="text-align:left;" onclick="fecharMenu(); abrirTrocarDominio();">🔗 Trocar domínio M3U em massa</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirImportar();">📥 Importar clientes</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirPersonalizacao();">🎨 Personalização</button>
-        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirAplicativos();">📲 Aplicativos</button>
-        <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
+        <button class="btn campo-iptv" style="text-align:left;" onclick="fecharMenu(); abrirAplicativos();">📲 Aplicativos</button>
+        <button class="btn campo-iptv" style="text-align:left;" onclick="fecharMenu(); abrirServidores();">🖥️ Servidores</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirRemarketing();">📣 Remarketing</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirNotificacoes();">🔔 Notificações</button>
         <button class="btn" style="text-align:left;" onclick="fecharMenu(); abrirFinanceiro();">💰 Financeiro</button>
@@ -251,7 +253,7 @@
           <th><input type="checkbox" id="chk-selecionar-todos" onchange="toggleSelecionarTodos()"></th>
           <th>Cliente</th>
           <th>Usuário</th>
-          <th>Servidor</th>
+          <th class="campo-iptv">Servidor</th>
           <th>Vencimento</th>
           <th>Plano</th>
           <th>Status</th>
@@ -496,6 +498,13 @@
       <label>Sua chave PIX (pra receber comissão de indicação)</label>
       <input type="text" id="cfg-pix" placeholder="CPF, e-mail, telefone ou chave aleatória">
     </div>
+    <div class="field">
+      <label>Tipo de negócio</label>
+      <select id="cfg-tipo-negocio" onchange="aplicarTipoNegocioUI()">
+        <option value="iptv">IPTV / Streaming (mostra servidor, apps e sincronização M3U)</option>
+        <option value="generico">Outro tipo de negócio (esconde os campos de IPTV)</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharConfiguracoes()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarConfiguracoes()">Salvar</button>
@@ -508,7 +517,7 @@
     <div class="modal-header"><h2>Renovar cliente</h2><button class="modal-close-x" onclick="fecharRenovacao()">✕</button></div>
     <input type="hidden" id="renovar-cliente-id">
 
-    <div id="renovar-sync-bloco" style="display:none; margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--border);">
+    <div id="renovar-sync-bloco" class="campo-iptv" style="display:none; margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--border);">
       <button class="btn" style="width:100%; background:var(--ok); border-color:var(--ok); color:#06231A; font-weight:600;" onclick="sincronizarRenovacao()">
         📡 Sincronizar com servidor (puxa a data real de lá)
       </button>
@@ -878,7 +887,7 @@
       <label>Nome</label>
       <input type="text" id="f-nome" placeholder="Nome do cliente">
     </div>
-    <div class="field">
+    <div class="field campo-iptv">
       <label>Link M3U (opcional — preenche usuário/senha/vencimento/servidor sozinho)</label>
       <div style="display:flex; gap:8px;">
         <input type="text" id="f-m3u" placeholder="http://painel.com/get.php?username=...&password=..." style="flex:1;">
@@ -898,14 +907,14 @@
       <label>Senha</label>
       <input type="text" id="f-senha" placeholder="senha123">
     </div>
-    <div class="field">
+    <div class="field campo-iptv">
       <label>Servidor</label>
       <select id="f-servidor" onchange="preencherChecklistAplicativos(this.value, null)"></select>
       <div style="margin-top:6px;">
         <a href="javascript:void(0)" onclick="abrirServidores()" style="font-size:12px; color:var(--text-muted);">+ cadastrar novo servidor</a>
       </div>
     </div>
-    <div class="field">
+    <div class="field campo-iptv">
       <label>Aplicativos que o cliente usa</label>
       <div id="f-aplicativos-lista" style="display:flex; flex-direction:column; gap:6px;">
         <div style="color:var(--text-muted); font-size:12px;">Escolhe o servidor do cliente primeiro.</div>
@@ -956,6 +965,11 @@
   let uidRevendedor = null;
   let clientes = [];
   let templatesAtuais = {};
+  let tipoNegocioAtual = 'iptv';
+
+  function aplicarTipoNegocioUI() {
+    document.body.classList.toggle('negocio-generico', tipoNegocioAtual === 'generico');
+  }
   let selecionados = new Set();
   let filtroAtual = 'todos';
 
@@ -1412,6 +1426,9 @@
     clientes = Object.entries(data).map(([id, c]) => ({ id, ...c }));
     const templatesRes = await dbFetch(`${caminhoConfig()}/templates.json`);
     templatesAtuais = await templatesRes.json() || {};
+    const tipoNegocioRes = await dbFetch(`${caminhoConfig()}/tipoNegocio.json`);
+    tipoNegocioAtual = (await tipoNegocioRes.json()) || 'iptv';
+    aplicarTipoNegocioUI();
     await carregarServidores();
     await carregarAplicativos();
     atualizarStats();
@@ -1695,7 +1712,7 @@
           <td data-label=""><input type="checkbox" class="chk-cliente" value="${c.id}" ${selecionados.has(c.id) ? 'checked' : ''} onchange="toggleSelecao('${c.id}')"></td>
           <td data-label="Cliente"><b>${c.nome}</b></td>
           <td data-label="Usuário" class="mono">${c.usuario || '—'}</td>
-          <td data-label="Servidor">${c.servidor || '—'}</td>
+          <td class="campo-iptv" data-label="Servidor">${c.servidor || '—'}</td>
           <td data-label="Vencimento"><div class="mono">${dataFormatada}</div><div style="font-size:12px; color:var(--text-muted);">${diasTexto}</div></td>
           <td data-label="Plano" class="mono">R$ ${Number(c.planoValor||0).toFixed(2)}</td>
           <td data-label="Status">${statusHtml} <span title="${c.notificacaoAtiva ? 'Notificação ativada' : 'Notificação não ativada'}" style="font-size:12px; opacity:${c.notificacaoAtiva ? '1' : '0.3'};">🔔</span></td>
@@ -3304,6 +3321,7 @@
     const config = await res.json() || {};
     document.getElementById('cfg-whatsapp').value = config.whatsappSuporte || '';
     document.getElementById('cfg-pix').value = config.chavePix || '';
+    document.getElementById('cfg-tipo-negocio').value = config.tipoNegocio || 'iptv';
     document.getElementById('overlay-configuracoes').classList.add('open');
   }
   function fecharConfiguracoes() {
@@ -3313,10 +3331,13 @@
     const whatsapp = document.getElementById('cfg-whatsapp').value.replace(/\D/g, '');
     if (!whatsapp) { alert('Preenche o número.'); return; }
     const chavePix = document.getElementById('cfg-pix').value.trim();
+    const tipoNegocio = document.getElementById('cfg-tipo-negocio').value;
     await dbFetch(`${caminhoConfig()}.json`, {
       method: 'PATCH',
-      body: JSON.stringify({ whatsappSuporte: whatsapp, chavePix })
+      body: JSON.stringify({ whatsappSuporte: whatsapp, chavePix, tipoNegocio })
     });
+    tipoNegocioAtual = tipoNegocio;
+    aplicarTipoNegocioUI();
     fecharConfiguracoes();
     alert('Configurações salvas!');
   }
