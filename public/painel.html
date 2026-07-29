@@ -1442,6 +1442,19 @@
     return diasAte(c.vencimento) < 0 ? 'inativo' : 'ativo';
   }
 
+  function calcularScoreCliente(c) {
+    if (c.emTeste) return null; // score só vale pra cliente oficial
+    const dias = diasAte(c.vencimento);
+    const atrasos = c.atrasosRenovacao || 0;
+    if (dias < -7) {
+      return { emoji: '🔴', texto: 'Alto risco de cancelamento', cor: 'var(--danger)' };
+    }
+    if (dias < 0 || atrasos >= 3) {
+      return { emoji: '🟡', texto: `Costuma atrasar${atrasos > 0 ? ` (${atrasos}x)` : ''}`, cor: 'var(--warn)' };
+    }
+    return { emoji: '🟢', texto: 'Excelente pagador', cor: 'var(--ok)' };
+  }
+
   let servidores = [];
   let aplicativos = [];
 
@@ -1732,10 +1745,13 @@
         statusHtml = `<span class="badge ${status}">${status}</span>`;
       }
 
+      const score = calcularScoreCliente(c);
+      const scoreHtml = score ? `<span title="${score.texto}" style="cursor:help;">${score.emoji}</span>` : '';
+
       return `
         <tr>
           <td data-label=""><input type="checkbox" class="chk-cliente" value="${c.id}" ${selecionados.has(c.id) ? 'checked' : ''} onchange="toggleSelecao('${c.id}')"></td>
-          <td data-label="Cliente"><b>${c.nome}</b></td>
+          <td data-label="Cliente"><b>${c.nome}</b> ${scoreHtml}</td>
           <td data-label="Usuário" class="mono">${c.usuario || '—'}</td>
           <td class="campo-iptv" data-label="Servidor">${c.servidor || '—'}</td>
           <td data-label="Vencimento"><div class="mono">${dataFormatada}</div><div style="font-size:12px; color:var(--text-muted);">${diasTexto}</div></td>
@@ -3448,9 +3464,13 @@
     const novoVencimento = calcularNovoVencimento();
     if (!novoVencimento) { alert('Escolhe os dias ou uma data.'); return; }
 
+    const estavaVencido = !cliente.emTeste && diasAte(cliente.vencimento) < 0;
+    const patch = { vencimento: novoVencimento, emTeste: false };
+    if (estavaVencido) patch.atrasosRenovacao = (cliente.atrasosRenovacao || 0) + 1;
+
     await dbFetch(`${caminhoClientes()}/${id}.json`, {
       method: 'PATCH',
-      body: JSON.stringify({ vencimento: novoVencimento, emTeste: false })
+      body: JSON.stringify(patch)
     });
 
     fecharRenovacao();
@@ -3485,9 +3505,13 @@
         return;
       }
 
+      const estavaVencido = !cliente.emTeste && diasAte(cliente.vencimento) < 0;
+      const patch = { vencimento: data.vencimento, emTeste: false };
+      if (estavaVencido) patch.atrasosRenovacao = (cliente.atrasosRenovacao || 0) + 1;
+
       await dbFetch(`${caminhoClientes()}/${id}.json`, {
         method: 'PATCH',
-        body: JSON.stringify({ vencimento: data.vencimento, emTeste: false })
+        body: JSON.stringify(patch)
       });
 
       fecharRenovacao();
