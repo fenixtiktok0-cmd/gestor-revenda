@@ -1,5 +1,5 @@
 const { auth, db, messaging } = require('../lib/firebaseAdmin');
-const { preencherTemplate } = require('../lib/templates');
+const { preencherTemplate, TEMPLATES_PADRAO } = require('../lib/templates');
 const { enviarPushSeguro } = require('../lib/pushHelper');
 const { Resend } = require('resend');
 
@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
 
     const corpo = mensagemCustom
       ? preencherTemplate(mensagemCustom, cliente, revId, clienteId)
-      : preencherTemplate(templates.msgManual, cliente, revId, clienteId);
+      : preencherTemplate(templates.msgManual || TEMPLATES_PADRAO.msgManual, cliente, revId, clienteId);
 
     let pushEnviado = false;
     let pushMotivo = 'sem token FCM';
@@ -63,7 +63,7 @@ module.exports = async (req, res) => {
         const resultadoEmail = await resend.emails.send({
           from: process.env.RESEND_FROM,
           to: cliente.email,
-          subject: preencherTemplate(templates.emailAssunto, cliente, revId, clienteId) || 'Aviso sobre seu plano',
+          subject: preencherTemplate(templates.emailAssunto || TEMPLATES_PADRAO.emailAssunto, cliente, revId, clienteId),
           text: corpo,
         });
         emailEnviado = !resultadoEmail.error;
