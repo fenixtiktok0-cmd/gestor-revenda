@@ -3448,6 +3448,7 @@
   }
 
   // ---- Tutoriais ----
+  let ultimaListaTutoriais = [];
   function extrairIdYoutube(url) {
     const padroes = [
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
@@ -3473,18 +3474,29 @@
   async function renderizarTutoriais() {
     const res = await dbFetch(`${FIREBASE_DB}/tutoriais.json`);
     const data = await res.json() || {};
-    const lista = Object.entries(data).map(([id, t]) => ({ id, ...t })).sort((a,b) => b.criadoEm - a.criadoEm);
+    const lista = Object.entries(data).map(([id, t]) => ({ id, ...t }))
+      .sort((a,b) => (a.ordem ?? a.criadoEm) - (b.ordem ?? b.criadoEm));
 
     const container = document.getElementById('lista-tutoriais');
+    const ehAdmin = uidRevendedor === MASTER_UID;
     container.innerHTML = lista.length === 0
       ? '<div style="color:var(--text-muted); font-size:13px;">Nenhum tutorial publicado ainda.</div>'
-      : lista.map(t => {
+      : lista.map((t, i) => {
         const videoId = extrairIdYoutube(t.urlYoutube || '');
+        const setasHtml = ehAdmin ? `
+          <span style="display:flex; gap:4px;">
+            <button class="del-mini" style="color:var(--text-muted);" ${i === 0 ? 'disabled' : ''} onclick="moverTutorial('${t.id}', -1)" title="Mover pra cima">▲</button>
+            <button class="del-mini" style="color:var(--text-muted);" ${i === lista.length - 1 ? 'disabled' : ''} onclick="moverTutorial('${t.id}', 1)" title="Mover pra baixo">▼</button>
+          </span>
+        ` : '';
         return `
           <div style="margin-bottom:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:10px;">
               <div style="font-weight:600; font-size:14px;">${t.titulo}</div>
-              ${uidRevendedor === MASTER_UID ? `<button class="del-mini" onclick="excluirTutorial('${t.id}')">remover</button>` : ''}
+              <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+                ${setasHtml}
+                ${ehAdmin ? `<button class="del-mini" onclick="excluirTutorial('${t.id}')">remover</button>` : ''}
+              </div>
             </div>
             ${t.descricao ? `<div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">${t.descricao}</div>` : ''}
             ${videoId
@@ -3493,6 +3505,25 @@
           </div>
         `;
       }).join('');
+
+    ultimaListaTutoriais = lista;
+  }
+  async function moverTutorial(id, direcao) {
+    const indiceAtual = ultimaListaTutoriais.findIndex(t => t.id === id);
+    const indiceAlvo = indiceAtual + direcao;
+    if (indiceAlvo < 0 || indiceAlvo >= ultimaListaTutoriais.length) return;
+
+    const atual = ultimaListaTutoriais[indiceAtual];
+    const alvo = ultimaListaTutoriais[indiceAlvo];
+    const ordemAtual = atual.ordem ?? atual.criadoEm;
+    const ordemAlvo = alvo.ordem ?? alvo.criadoEm;
+
+    await Promise.all([
+      dbFetch(`${FIREBASE_DB}/tutoriais/${atual.id}.json`, { method: 'PATCH', body: JSON.stringify({ ordem: ordemAlvo }) }),
+      dbFetch(`${FIREBASE_DB}/tutoriais/${alvo.id}.json`, { method: 'PATCH', body: JSON.stringify({ ordem: ordemAtual }) })
+    ]);
+
+    await renderizarTutoriais();
   }
   async function adicionarTutorial() {
     const titulo = document.getElementById('tut-titulo').value.trim();
@@ -3500,9 +3531,11 @@
     const descricao = document.getElementById('tut-descricao').value.trim();
     if (!titulo || !urlYoutube) { alert('Preenche o título e o link do YouTube.'); return; }
 
+    const maiorOrdem = ultimaListaTutoriais.reduce((max, t) => Math.max(max, t.ordem ?? t.criadoEm ?? 0), 0);
+
     await dbFetch(`${FIREBASE_DB}/tutoriais.json`, {
       method: 'POST',
-      body: JSON.stringify({ titulo, urlYoutube, descricao, criadoEm: Date.now() })
+      body: JSON.stringify({ titulo, urlYoutube, descricao, criadoEm: Date.now(), ordem: maiorOrdem + 1 })
     });
 
     document.getElementById('tut-titulo').value = '';
