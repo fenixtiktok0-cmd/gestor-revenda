@@ -620,6 +620,13 @@
       <label>Status</label>
       <div id="det-status-info" class="mono" style="font-size:13px; color:var(--text-muted);"></div>
     </div>
+    <div class="field" style="background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.35); border-radius:10px; padding:12px;">
+      <label style="color:var(--ok); font-weight:600;">✅ Ativar manualmente</label>
+      <div style="font-size:11px; color:var(--text-muted); margin:4px 0 10px;">Ativa a assinatura dele agora, com a data de vencimento que você escolher — útil pra quem pagou fora do sistema.</div>
+      <label>Vencimento (pago até)</label>
+      <input type="date" id="det-vencimento-manual">
+      <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="ativarRevendedorManual()">✅ Ativar com essa data</button>
+    </div>
     <div class="modal-actions" style="justify-content:space-between;">
       <button class="btn" style="background:var(--danger); border-color:var(--danger); color:#fff;" onclick="excluirRevendedor()">🗑️ Excluir revendedor</button>
       <div style="display:flex; gap:10px;">
@@ -2708,6 +2715,8 @@
       UID: ${rev.id}
     `;
     document.getElementById('overlay-detalhe-revendedor').classList.add('open');
+    const padraoData = rev.pagoAte && rev.pagoAte > Date.now() ? rev.pagoAte : (Date.now() + 30 * 24 * 60 * 60 * 1000);
+    document.getElementById('det-vencimento-manual').value = paraInputData(padraoData);
   }
   function fecharDetalheRevendedor() {
     document.getElementById('overlay-detalhe-revendedor').classList.remove('open');
@@ -2732,6 +2741,31 @@
       alert('✅ Dados atualizados!');
     } catch (err) {
       alert('Erro ao salvar.');
+    }
+  }
+
+  async function ativarRevendedorManual() {
+    const revendedorId = document.getElementById('det-revendedor-id').value;
+    const dataInput = document.getElementById('det-vencimento-manual').value;
+    if (!dataInput) { alert('Escolhe a data de vencimento.'); return; }
+    const pagoAte = new Date(dataInput + 'T23:59:59').getTime();
+
+    if (!confirm(`Ativar esse revendedor manualmente, com vencimento em ${new Date(pagoAte).toLocaleDateString('pt-BR')}?`)) return;
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/gerenciar-revendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ acao: 'ativar-manual', revendedorId, pagoAte })
+      });
+      const data = await res.json();
+      if (data.erro) { alert('Erro: ' + data.erro); return; }
+      fecharDetalheRevendedor();
+      await carregarDashboardRevendedores();
+      alert('✅ Revendedor ativado manualmente!');
+    } catch (err) {
+      alert('Erro ao ativar.');
     }
   }
   async function excluirRevendedor() {
