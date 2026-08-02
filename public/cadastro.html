@@ -93,6 +93,10 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
     <input type="password" id="input-senha" placeholder="••••••••">
   </div>
   <div class="field">
+    <label>WhatsApp (com DDD)</label>
+    <input type="text" id="input-whatsapp" placeholder="21999999999">
+  </div>
+  <div class="field">
     <label>Qual o tipo do seu serviço?</label>
     <select id="input-tipo-negocio">
       <option value="iptv">IPTV / Streaming</option>
@@ -153,6 +157,7 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
     const nome = document.getElementById('input-nome').value.trim();
     const email = document.getElementById('input-email').value.trim();
     const senha = document.getElementById('input-senha').value;
+    const whatsapp = document.getElementById('input-whatsapp').value.replace(/\D/g, '');
     const tipoNegocio = document.getElementById('input-tipo-negocio').value;
     const origemCadastro = document.getElementById('input-origem').value;
     const erroEl = document.getElementById('erro-cadastro');
@@ -160,7 +165,7 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
 
     erroEl.style.display = 'none';
 
-    if (!nome || !email || !senha) {
+    if (!nome || !email || !senha || !whatsapp) {
       erroEl.textContent = 'Preenche todos os campos.';
       erroEl.style.display = 'block';
       return;
@@ -187,6 +192,7 @@ src="https://www.facebook.com/tr?id=1038593628771799&ev=PageView&noscript=1"/>
         body: JSON.stringify({
           nome,
           email,
+          whatsapp,
           criadoEm: Date.now(),
           ativo: true,
           assinaturaStatus: 'teste',
