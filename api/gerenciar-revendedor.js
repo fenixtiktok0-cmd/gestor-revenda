@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
       return res.status(403).json({ erro: 'Só o administrador da plataforma pode fazer isso.' });
     }
 
-    const { acao, revendedorId, nome, email } = req.body || {};
+    const { acao, revendedorId, nome, email, pagoAte } = req.body || {};
     if (!acao || !revendedorId) {
       return res.status(400).json({ erro: 'acao e revendedorId são obrigatórios.' });
     }
@@ -36,6 +36,19 @@ module.exports = async (req, res) => {
 
       await auth.updateUser(revendedorId, { email, displayName: nome });
       await db.ref(`revendedores/${revendedorId}`).update({ nome, email });
+
+      return res.status(200).json({ ok: true });
+    }
+
+    if (acao === 'ativar-manual') {
+      if (!pagoAte) return res.status(400).json({ erro: 'pagoAte é obrigatório.' });
+
+      await db.ref(`revendedores/${revendedorId}`).update({
+        assinaturaStatus: 'ativa',
+        pagoAte,
+        ativadoManualmente: true,
+        ativadoManualmenteEm: Date.now(),
+      });
 
       return res.status(200).json({ ok: true });
     }
