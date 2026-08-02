@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
       return res.status(403).json({ erro: 'Só o administrador da plataforma pode fazer isso.' });
     }
 
-    const { acao, revendedorId, nome, email, pagoAte } = req.body || {};
+    const { acao, revendedorId, nome, email, whatsapp, pagoAte } = req.body || {};
     if (!acao || !revendedorId) {
       return res.status(400).json({ erro: 'acao e revendedorId são obrigatórios.' });
     }
@@ -35,7 +35,7 @@ module.exports = async (req, res) => {
       if (!nome || !email) return res.status(400).json({ erro: 'nome e email são obrigatórios.' });
 
       await auth.updateUser(revendedorId, { email, displayName: nome });
-      await db.ref(`revendedores/${revendedorId}`).update({ nome, email });
+      await db.ref(`revendedores/${revendedorId}`).update({ nome, email, whatsapp: whatsapp || null });
 
       return res.status(200).json({ ok: true });
     }
