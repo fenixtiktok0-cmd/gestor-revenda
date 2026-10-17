@@ -16,5 +16,39 @@
     "api/cron-testes.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/criar-revendedor",
+      "destination": "/api/revenda-operations?operacao=criar-revendedor"
+    },
+    {
+      "source": "/api/gerenciar-revendedor",
+      "destination": "/api/revenda-operations?operacao=gerenciar-revendedor"
+    },
+    {
+      "source": "/api/impersonar-revendedor",
+      "destination": "/api/revenda-operations?operacao=impersonar-revendedor"
+    },
+    {
+      "source": "/api/pagar-comissao",
+      "destination": "/api/revenda-operations?operacao=pagar-comissao"
+    },
+    {
+      "source": "/api/push-manual-revendedor",
+      "destination": "/api/revenda-operations?operacao=push-manual-revendedor"
+    },
+    {
+      "source": "/api/meus-chamados",
+      "destination": "/api/revenda-operations?operacao=meus-chamados"
+    },
+    {
+      "source": "/api/meus-indicados",
+      "destination": "/api/revenda-operations?operacao=meus-indicados"
+    },
+    {
+      "source": "/api/minhas-comissoes",
+      "destination": "/api/revenda-operations?operacao=minhas-comissoes"
+    }
+  ]
 }
