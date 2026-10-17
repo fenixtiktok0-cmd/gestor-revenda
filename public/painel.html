@@ -1050,7 +1050,35 @@
     // Evita que o navegador sirva uma resposta antiga guardada em cache —
     // sempre busca os dados reais e atuais do Firebase.
     opcoes = { ...opcoes, cache: 'no-store' };
-    return fetch(url, opcoes);
+    try {
+      const resposta = await fetch(url, opcoes);
+      if (!resposta.ok) {
+        const erro = new Error(resposta.status === 401 || resposta.status === 403
+          ? 'Seu acesso aos dados não pôde ser confirmado. Atualize a página ou procure o suporte.'
+          : 'Não foi possível carregar ou salvar os dados. Tente novamente.');
+        erro.httpStatus = resposta.status;
+        throw erro;
+      }
+      return resposta;
+    } catch (erro) {
+      mostrarFalhaConsulta(erro);
+      throw erro;
+    }
+  }
+
+  function mostrarFalhaConsulta(erro) {
+    let aviso = document.getElementById('aviso-falha-consulta');
+    if (!aviso) {
+      aviso = document.createElement('div');
+      aviso.id = 'aviso-falha-consulta';
+      aviso.setAttribute('role', 'alert');
+      aviso.style.cssText = 'margin:16px 24px;padding:14px;border:1px solid var(--danger);border-radius:10px;color:var(--danger);';
+      document.getElementById('tela-painel').prepend(aviso);
+    }
+    aviso.textContent = erro && (erro.httpStatus === 401 || erro.httpStatus === 403)
+      ? 'Não foi possível confirmar o acesso aos seus dados. Seus clientes e pagamentos não foram alterados. Atualize a página ou procure o suporte.'
+      : 'Falha ao consultar ou salvar os dados. Atualize a página e confira o resultado antes de tentar novamente.';
+    aviso.style.display = 'block';
   }
 
   const MASTER_UID = 'G8SAyrR7fFcslRmSIBUosRwA6QF2';
@@ -1136,8 +1164,8 @@
       document.getElementById('impersonando-nome').textContent = sessionStorage.getItem('admin_impersonando_nome') || '';
     }
 
-    verificarAcesso();
-    verificarNotificacaoRevendedor();
+    verificarAcesso().catch(mostrarFalhaConsulta);
+    verificarNotificacaoRevendedor().catch(mostrarFalhaConsulta);
 
     if (uidRevendedor === MASTER_UID) {
       document.getElementById('dashboard-clientes').style.display = 'none';
@@ -1148,14 +1176,14 @@
       document.getElementById('btn-menu-chamados').style.display = 'block';
       document.getElementById('btn-menu-avisos-admin').style.display = 'block';
       document.getElementById('btn-menu-remkt-revendedores').style.display = 'block';
-      carregarDashboardRevendedores();
+      carregarDashboardRevendedores().catch(mostrarFalhaConsulta);
     } else {
       document.getElementById('btn-header-link').style.display = 'inline-block';
       document.getElementById('btn-header-indicados').style.display = 'inline-block';
-      carregarClientes();
-      carregarPercentualComissaoDestaque();
-      carregarBotaoWhatsappSuporte();
-      verificarAvisosNaoLidos();
+      carregarClientes().catch(mostrarFalhaConsulta);
+      carregarPercentualComissaoDestaque().catch(mostrarFalhaConsulta);
+      carregarBotaoWhatsappSuporte().catch(mostrarFalhaConsulta);
+      verificarAvisosNaoLidos().catch(mostrarFalhaConsulta);
     }
   });
 
@@ -1553,7 +1581,12 @@
   async function carregarClientes() {
     const res = await dbFetch(`${caminhoClientes()}.json`);
     const data = await res.json() || {};
-    clientes = Object.entries(data).map(([id, c]) => ({ id, ...c }));
+    if (typeof data !== 'object' || Array.isArray(data) || Object.prototype.hasOwnProperty.call(data, 'error')) {
+      const erro = new Error('Resposta de clientes inválida.');
+      mostrarFalhaConsulta(erro);
+      throw erro;
+    }
+    clientes = Object.entries(data).filter(([, c]) => c && typeof c === 'object').map(([id, c]) => ({ id, ...c }));
     const templatesRes = await dbFetch(`${caminhoConfig()}/templates.json`);
     templatesAtuais = await templatesRes.json() || {};
     const tipoNegocioRes = await dbFetch(`${caminhoConfig()}/tipoNegocio.json`);
